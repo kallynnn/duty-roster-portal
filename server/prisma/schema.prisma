@@ -1,0 +1,78 @@
+// ===================================================
+// === ФІНАЛЬНА ВЕРСІЯ: schema.prisma (ВИПРАВЛЕНА) ===
+// ===================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement()) // <-- ТУТ БУЛА ПОМИЛКА, ТЕПЕР ВИПРАВЛЕНО
+  email     String   @unique
+  password  String
+  role      Role     @default(SOLDIER)
+  soldier   Soldier?
+}
+
+enum Role {
+  SOLDIER
+  COMMANDER
+  ADMIN
+}
+
+model Soldier {
+  id     Int    @id @default(autoincrement())
+  name   String 
+  rank   String 
+  
+  position    String? 
+  phoneNumber String? 
+  
+  status Status @default(ACTIVE) 
+  userId Int?   @unique
+  user   User?  @relation(fields: [userId], references: [id])
+  duties Schedule[]
+}
+
+enum Status {
+  ACTIVE
+  LEAVE
+  SICK
+}
+
+model DutyType {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  schedules   Schedule[]
+  
+  allowedRanks String[] @default([]) 
+}
+
+model Schedule {
+  id          Int      @id @default(autoincrement())
+  date        DateTime @db.Date
+  soldier     Soldier  @relation(fields: [soldierId], references: [id])
+  soldierId   Int
+  dutyType    DutyType @relation(fields: [dutyTypeId], references: [id])
+  dutyTypeId  Int
+}
+
+model News {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String   @db.Text
+  imageUrl  String?
+  createdAt DateTime @default(now())
+}
+
+model GalleryImage {
+  id          Int      @id @default(autoincrement())
+  imageUrl    String
+  description String?
+}

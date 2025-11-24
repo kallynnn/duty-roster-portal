@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",        // <-- "Чарівний" рядок. Кажемо: "Роби 'старий' JavaScript"
+    "moduleResolution": "node",
+    "esModuleInterop": true,     // Дозволяє нам писати `import express from 'express'`
+    "strict": true,
+    "skipLibCheck": true
+  }
+}
