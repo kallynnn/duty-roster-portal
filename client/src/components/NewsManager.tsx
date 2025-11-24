@@ -28,7 +28,7 @@ export const NewsManager: React.FC = () => {
       onConfirm: async () => {
         try {
           // Викликаємо наш новий API
-          await axios.delete(`http://localhost:5000/api/news/${id}`);
+          await axios.delete(`/api/news/${id}`);
           showToast('Новину успішно видалено', 'success');
           refetch(); // Оновлюємо список
         } catch (err: any) {

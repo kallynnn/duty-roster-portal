@@ -95,7 +95,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ scope }) => 
     // 'onConfirm' - це те, що має статися, якщо натиснули "Так"
     onConfirm: async () => { // <-- 'async' переїжджає сюди
       try {
-        const response = await axios.post('http://localhost:5000/api/schedule/generate', { month, year });
+        const response = await axios.post('/api/schedule/generate', { month, year });
         showToast(response.data.message, 'success'); 
         refetch(); // Оновлюємо календар
       } catch (err: any) {
