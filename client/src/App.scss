@@ -1,0 +1,89 @@
+/* Просто, щоб прибрати підкреслення у посилань в шапці */
+.nav-link {
+  text-decoration: none;
+}
+/* === ВИПРАВЛЕННЯ ТЕМНОЇ ТЕМИ ДЛЯ REACT-BIG-CALENDAR === */
+
+// Ми "цілимося" в атрибут, який наш ThemeProvider додає до <html>
+// Це означає: "Застосувати ці стилі, ТІЛЬКИ ЯКЩО тема = dark"
+[data-bs-theme="dark"] {
+
+  // Загальний фон календаря та колір тексту
+  .rbc-calendar {
+    background-color: var(--bs-dark-bg-subtle); // Використовуємо темний фон Bootstrap
+    color: var(--bs-light-text); // Використовуємо світлий текст Bootstrap
+  }
+
+  // Колір тексту для кнопок "Сьогодні", "Наст.", "Місяць"
+  .rbc-toolbar .rbc-btn-group button,
+  .rbc-toolbar .rbc-toolbar-label {
+    color: var(--bs-light-text);
+  }
+
+  // Колір тексту для "ПН", "ВТ", "СР"...
+  .rbc-header {
+    color: var(--bs-light-text-emphasis);
+  }
+
+  // Колір сітки (ліній)
+  .rbc-month-view,
+  .rbc-day-bg,
+  .rbc-header,
+  .rbc-time-header-content,
+  .rbc-time-slot,
+  .rbc-day-slot .rbc-time-slot {
+    border-color: var(--bs-border-color-translucent); // Використовуємо темну сітку Bootstrap
+  }
+
+  // Колір "неактивних" днів (іншого місяця)
+  .rbc-off-range-bg {
+    background-color: var(--bs-dark); // Робимо їх трохи темнішими
+  }
+
+  // Колір тексту всередині самої події (на синьому фоні)
+  .rbc-event {
+    color: var(--bs-white); // Робимо текст білим
+  }
+
+  // Колір фону для "Сьогодні"
+  .rbc-today {
+    background-color: var(--bs-primary-bg-subtle); // Використовуємо приглушений синій
+  }
+}
+[data-bs-theme="dark"] {
+
+  // ... (всі твої старі стилі для .rbc-calendar, .rbc-header...)
+
+
+  // === НОВИЙ КОД: Виправлення кольору подій (Менш яскравий) ===
+  .bg-dark {
+    // Замість 'black' (#000), ми використовуємо "трохи світліший"
+    // темно-сірий колір з палітри Bootstrap
+    background-color: var(--bs-tertiary-bg) !important; 
+  }
+
+  .rbc-event {
+    // === ЗМІНЕНО: Використовуємо 'info' (бірюзовий) замість 'primary' (яскраво-синій) ===
+    background-color: var(--bs-info);
+    border-color: var(--bs-info-border-subtle);
+    color: var(--bs-black); // Для 'info' кольору краще підійде чорний текст
+  }
+
+  // Стиль для посилання "+3 more" (код без змін)
+  .rbc-show-more {
+    color: var(--bs-light-text-emphasis);
+
+    &:hover {
+      color: var(--bs-white);
+    }
+  }
+}
+
+  // Стиль для посилання "+3 more" (яке у тебе на скріншоті)
+  .rbc-show-more {
+    color: var(--bs-light-text-emphasis); // Робимо текст світлим, але не білим
+
+    &:hover {
+      color: var(--bs-white); // При наведенні - білим
+    }
+  }
