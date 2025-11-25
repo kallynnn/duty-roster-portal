@@ -10,15 +10,18 @@ import axios from 'axios';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 
+// Налаштування локалізації (українська мова)
 moment.locale('uk');
 const localizer = momentLocalizer(moment);
 
+// --- Типи даних ---
 interface IScheduleEvent {
   id: number;
   date: string;
   soldier: { name: string };
   dutyType: { name: string };
 }
+
 interface ICalendarEvent {
   id: number;
   title: string; 
@@ -30,31 +33,37 @@ interface ScheduleCalendarProps {
   scope: 'all' | 'mine'; 
 }
 
+// === ПОЧАТОК КОМПОНЕНТА ===
 export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ scope }) => {
+  // 1. Хуки
   const { showToast } = useToast();
-  const { ask } = useConfirm();
+  const { ask } = useConfirm(); 
 
+  // 2. Вибір API залежно від ролі (Командир чи Солдат)
   const apiUrl = scope === 'all' 
     ? '/api/schedule'           
     : '/api/schedule/my-schedule'; 
 
+  // 3. Завантаження даних
   const { data: scheduleEvents, isLoading, refetch } = useFetchData<IScheduleEvent[]>(apiUrl);
 
+  // 4. Стан (State)
   const [showModal, setShowModal] = useState(false); 
   const [selectedDayEvents, setSelectedDayEvents] = useState<ICalendarEvent[]>([]); 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null); 
   const [date, setDate] = useState(new Date()); 
   const [view, setView] = useState<View>('month'); 
-  
-  // === НОВЕ: Стан для кнопки оновлення ===
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false); // Стан для блокування кнопки
 
+  // 5. Трансформація подій для календаря
   const events: ICalendarEvent[] = scheduleEvents ? scheduleEvents.map(event => ({
     id: event.id,
     title: `${event.dutyType.name}: ${event.soldier.name}`,
     start: new Date(event.date),
     end: new Date(event.date), 
   })) : [];
+
+  // --- ФУНКЦІЇ ОБРОБНИКИ (Всі функції повинні бути ТУТ, до return) ---
 
   const handleSelectSlot = (slotInfo: { start: Date }) => {
     const clickedDate = slotInfo.start;
@@ -65,30 +74,38 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ scope }) => 
     setSelectedDate(clickedDate);
     setShowModal(true);
   };
+
   const handleCloseModal = () => setShowModal(false);
   const handleNavigate = (newDate: Date) => setDate(newDate);
   const handleView = (newView: View) => setView(newView);
 
-  // === НОВЕ: Функція ручного оновлення ===
-  const handleRefresh = async () => {
-    setIsUpdating(true);
-    try {
-      await refetch();
-      showToast('Календар актуалізовано', 'success');
-    } catch (error) {
-      showToast('Не вдалося оновити дані', 'danger');
-    } finally {
-      setIsUpdating(false);
-    }
+  // === ВАША НОВА ФУНКЦІЯ ОНОВЛЕННЯ ===
+  const handleRefresh = () => {
+    ask({
+      title: 'Оновити календар?',
+      message: 'Ви впевнені, що хочете завантажити свіжі дані?',
+      onConfirm: async () => {
+        setIsUpdating(true); // Вмикаємо "Зачекайте..."
+        try {
+          await refetch(); // Реальне оновлення даних
+          showToast('Дані успішно оновлено', 'success');
+        } catch (error) {
+          showToast('Помилка при оновленні', 'danger');
+        } finally {
+          setIsUpdating(false); // Вимикаємо "Зачекайте..."
+        }
+      }
+    });
   };
 
+  // Функція генерації графіка
   const handleGenerate = () => {
     const month = new Date().getMonth() + 1; 
     const year = new Date().getFullYear(); 
 
     ask({
       title: 'Підтвердити Генерацію',
-      message: `Ви впевнені, що хочете згенерувати новий графік на ${month}/${year}? Старий графік на цей місяць буде видалено.`,
+      message: `Згенерувати новий графік на ${month}/${year}? Старий графік буде видалено.`,
       onConfirm: async () => { 
         try {
           const response = await axios.post('/api/schedule/generate', { month, year });
@@ -101,41 +118,38 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ scope }) => 
     });
   };
 
+  // === ВІДОБРАЖЕННЯ (JSX) ===
   return (
     <div>
       <hr className="my-4" />
       <h3>Графік нарядів</h3>
 
+      {/* Панель кнопок (Тільки для Командира) */}
       {scope === 'all' && (
         <div className="mb-3 p-3 border rounded">
           <Row>
+            {/* Кнопка Генерації */}
             <Col md={3}>
               <Button variant="success" className="w-100" onClick={handleGenerate}>
                 Згенерувати графік
               </Button>
             </Col>
 
-            {/* === ОНОВЛЕНА КНОПКА === */}
+            {/* === ВАША КНОПКА ОНОВЛЕННЯ === */}
             <Col md={3}>
               <Button 
                 variant="info" 
                 className="w-100" 
-                onClick={handleRefresh}
-                disabled={isUpdating || isLoading} // Блокуємо при завантаженні
+                onClick={handleRefresh} // Викликаємо функцію зверху
+                disabled={isUpdating || isLoading}
               >
-                 {isUpdating ? (
-                    <>
-                      {/* Спіннер Bootstrap */}
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Оновлення...
-                    </>
-                 ) : 'Оновити календар'}
+                {isUpdating ? 'Зачекайте...' : 'Оновити календар'}
               </Button>
             </Col>
 
             <Col>
               <p className="text-muted small">
-                "Згенерувати" - для створення нового графіку. "Оновити" - для завантаження змін.
+                "Згенерувати" - створює новий. "Оновити" - завантажує зміни.
               </p>
             </Col>
           </Row>
@@ -144,7 +158,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ scope }) => 
 
       {isLoading && <p>Завантаження графіку...</p>}
 
-      {/* Контейнер без білого фону (щоб працювала темна тема) */}
+      {/* Календар (Висота обов'язкова) */}
       <div style={{ height: '600px' }}>
         <Calendar
           localizer={localizer}
@@ -171,6 +185,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ scope }) => 
         />
       </div>
 
+      {/* Модальне вікно для перегляду подій дня */}
       <Modal show={showModal} onHide={handleCloseModal}>
          <Modal.Header closeButton>
           <Modal.Title>
@@ -200,4 +215,3 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ scope }) => 
     </div>
   );
 };
-// Update for deployment

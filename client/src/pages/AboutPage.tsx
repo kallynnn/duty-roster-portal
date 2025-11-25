@@ -49,7 +49,7 @@ export const AboutPage: React.FC = () => {
                 <li className="list-inline-item"><span className="badge bg-success">PostgreSQL</span></li>
                 <li className="list-inline-item"><span className="badge bg-primary-subtle text-dark">Prisma (ORM)</span></li>
                 <li className="list-inline-item"><span className="badge bg-purple" style={{ backgroundColor: '#7952B3', color: 'white' }}>Bootstrap</span></li>
-                <li className="list-inline-item"><span className="badge bg-danger-subtle text-dark">SASS</span></li>
+                <li className="list-inline-item"><span className="badge bg-danger-subtle text-dark">SCSS</span></li>
                 <li className="list-inline-item"><span className="badge bg-warning text-dark">JWT</span></li>
               </ul>
 
