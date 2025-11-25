@@ -316,3 +316,4 @@ app.post('/api/schedule/generate', authMiddleware, async (req: Request, res: Res
 });
 
 app.listen(PORT, () => { console.log(`✅ Server is running on http://localhost:${PORT}`); });
+// Update for deployment
