@@ -1,38 +1,34 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-// === НОВЕ: Прибираємо 'Form' та 'Alert' з імпортів ===
 import { Container, Row, Col } from 'react-bootstrap';
 
-// === ІМПОРТИ ТВОГО "ЯДРА" ПРОЄКТУ ===
+// Імпортуємо твої компоненти
 import { SoldierManager } from '../components/SoldierManager';
 import { DutyTypeManager } from '../components/DutyTypeManager';
 import { ScheduleCalendar } from '../components/ScheduleCalendar';
-import { NewsManager } from '../components/NewsManager';
+import { NewsManager } from '../components/NewsManager'; // Не забудь додати NewsManager, якщо ти його використовуєш
 
 export const DashboardPage: React.FC = () => {
-  const { role } = useAuth(); // Ми все ще показуємо роль
-
-  // (Всі 'useState' для новин/галереї - ВИДАЛЕНО)
-  // (Всі 'handleNewsSubmit', 'handleGallerySubmit' - ВИДАЛЕНО)
+  const { role } = useAuth(); 
 
   return (
     <Container>
       <Row>
         <Col>
-          <h2>Панель Управління</h2>
+          <h2 className="my-4">Панель Управління</h2>
           <p>Ваша роль: <strong>{role}</strong></p>
 
-          {/* (Всі форми для новин/галереї - ВИДАЛЕНО) */}
-
-          {/* === КЕРУВАННЯ ОСОБОВИМ СКЛАДОМ === */}
+          {/* === 1. Керування солдатами === */}
           <SoldierManager />
 
-          {/* === КЕРУВАННЯ ВИДАМИ НАРЯДІВ === */}
+          {/* === 2. Керування нарядами === */}
           <DutyTypeManager />
 
-          {/* === ГРАФІК НАРЯДІВ === */}
+          {/* === 3. ГРАФІК (КАЛЕНДАР) === */}
           <ScheduleCalendar scope="all" />
-          <NewsManager />
+
+          {/* === 4. Керування Новинами (якщо треба) === */}
+          {/* <NewsManager /> */}
 
         </Col>
       </Row>

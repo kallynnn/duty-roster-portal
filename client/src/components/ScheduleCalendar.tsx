@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Calendar, momentLocalizer, View } from 'react-big-calendar';
 import moment from 'moment';
 import 'moment/locale/uk';
+import 'react-big-calendar/lib/css/react-big-calendar.css'; 
+
 import { useFetchData } from '../hooks/useFetchData';
 import { Row, Col, Button, Modal } from 'react-bootstrap'; 
 import axios from 'axios';
@@ -24,30 +26,29 @@ interface ICalendarEvent {
   end: Date;
 }
 
-// === ПОВЕРТАЄМО 'scope' (область видимості) ===
 interface ScheduleCalendarProps {
-  scope: 'all' | 'mine'; // 'all' - для Командира, 'mine' - для Солдата
+  scope: 'all' | 'mine'; 
 }
 
 export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ scope }) => {
   const { showToast } = useToast();
   const { ask } = useConfirm();
 
-  // === ПОВЕРТАЄМО Динамічний URL ===
   const apiUrl = scope === 'all' 
-    ? '/api/schedule'           // (для Командира)
-    : '/api/schedule/my-schedule'; // (для Солдата)
+    ? '/api/schedule'           
+    : '/api/schedule/my-schedule'; 
 
   const { data: scheduleEvents, isLoading, refetch } = useFetchData<IScheduleEvent[]>(apiUrl);
 
-  // ... (всі 'useState' для модального вікна, дати та вигляду) ...
   const [showModal, setShowModal] = useState(false); 
   const [selectedDayEvents, setSelectedDayEvents] = useState<ICalendarEvent[]>([]); 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null); 
   const [date, setDate] = useState(new Date()); 
   const [view, setView] = useState<View>('month'); 
+  
+  // === НОВЕ: Стан для кнопки оновлення ===
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  // Трансформуємо дані
   const events: ICalendarEvent[] = scheduleEvents ? scheduleEvents.map(event => ({
     id: event.id,
     title: `${event.dutyType.name}: ${event.soldier.name}`,
@@ -55,7 +56,6 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ scope }) => 
     end: new Date(event.date), 
   })) : [];
 
-  // ... (всі функції-обробники 'handleSelectSlot', 'handleCloseModal', 'handleNavigate', 'handleView') ...
   const handleSelectSlot = (slotInfo: { start: Date }) => {
     const clickedDate = slotInfo.start;
     const dayEvents = events.filter(event => 
@@ -69,61 +69,73 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ scope }) => 
   const handleNavigate = (newDate: Date) => setDate(newDate);
   const handleView = (newView: View) => setView(newView);
 
+  // === НОВЕ: Функція ручного оновлення ===
+  const handleRefresh = async () => {
+    setIsUpdating(true);
+    try {
+      await refetch();
+      showToast('Календар актуалізовано', 'success');
+    } catch (error) {
+      showToast('Не вдалося оновити дані', 'danger');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleGenerate = () => {
+    const month = new Date().getMonth() + 1; 
+    const year = new Date().getFullYear(); 
+
+    ask({
+      title: 'Підтвердити Генерацію',
+      message: `Ви впевнені, що хочете згенерувати новий графік на ${month}/${year}? Старий графік на цей місяць буде видалено.`,
+      onConfirm: async () => { 
+        try {
+          const response = await axios.post('/api/schedule/generate', { month, year });
+          showToast(response.data.message, 'success'); 
+          refetch(); 
+        } catch (err: any) {
+          showToast(err.response?.data?.message || 'Помилка генерації', 'danger'); 
+        }
+      }
+    });
+  };
+
   return (
     <div>
       <hr className="my-4" />
       <h3>Графік нарядів</h3>
 
-      {/* === Показуємо кнопки керування ТІЛЬКИ Командиру === */}
       {scope === 'all' && (
         <div className="mb-3 p-3 border rounded">
           <Row>
-            {/* Кнопка "Згенерувати" */}
             <Col md={3}>
-              <Button 
-                variant="success" 
-                className="w-100"
-               onClick={() => { // <-- Прибираємо 'async' звідси
-  const month = new Date().getMonth() + 1; 
-  const year = new Date().getFullYear(); 
-
-  // Викликаємо наш новий хук
-  ask({
-    title: 'Підтвердити Генерацію',
-    message: `Ви впевнені, що хочете згенерувати новий графік на ${month}/${year}? Старий графік на цей місяць буде видалено.`,
-
-    // 'onConfirm' - це те, що має статися, якщо натиснули "Так"
-    onConfirm: async () => { // <-- 'async' переїжджає сюди
-      try {
-        const response = await axios.post('/api/schedule/generate', { month, year });
-        showToast(response.data.message, 'success'); 
-        refetch(); // Оновлюємо календар
-      } catch (err: any) {
-        showToast(err.response?.data?.message || 'Помилка генерації', 'danger'); 
-      }
-    }
-  });
-}}
-              >
+              <Button variant="success" className="w-100" onClick={handleGenerate}>
                 Згенерувати графік
               </Button>
             </Col>
 
-            {/* Кнопка "Оновити" */}
+            {/* === ОНОВЛЕНА КНОПКА === */}
             <Col md={3}>
               <Button 
                 variant="info" 
-                className="w-100"
-                onClick={() => refetch()} 
+                className="w-100" 
+                onClick={handleRefresh}
+                disabled={isUpdating || isLoading} // Блокуємо при завантаженні
               >
-                Оновити календар
+                 {isUpdating ? (
+                    <>
+                      {/* Спіннер Bootstrap */}
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Оновлення...
+                    </>
+                 ) : 'Оновити календар'}
               </Button>
             </Col>
 
             <Col>
               <p className="text-muted small">
-                "Згенерувати" - для створення нового графіку.
-                "Оновити" - для завантаження останніх змін.
+                "Згенерувати" - для створення нового графіку. "Оновити" - для завантаження змін.
               </p>
             </Col>
           </Row>
@@ -132,9 +144,8 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ scope }) => 
 
       {isLoading && <p>Завантаження графіку...</p>}
 
-      {/* Календар */}
-      <div style={{ overflowX: 'auto' }}>
-        <div style={{ height: '500px', minWidth: '700px' }}></div>
+      {/* Контейнер без білого фону (щоб працювала темна тема) */}
+      <div style={{ height: '600px' }}>
         <Calendar
           localizer={localizer}
           events={events} 
@@ -160,7 +171,6 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ scope }) => 
         />
       </div>
 
-      {/* Модальне вікно */}
       <Modal show={showModal} onHide={handleCloseModal}>
          <Modal.Header closeButton>
           <Modal.Title>

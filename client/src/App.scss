@@ -1,89 +1,99 @@
-/* Просто, щоб прибрати підкреслення у посилань в шапці */
+/* index.scss */
+
+/* 1. Загальні виправлення */
 .nav-link {
   text-decoration: none;
 }
-/* === ВИПРАВЛЕННЯ ТЕМНОЇ ТЕМИ ДЛЯ REACT-BIG-CALENDAR === */
 
-// Ми "цілимося" в атрибут, який наш ThemeProvider додає до <html>
-// Це означає: "Застосувати ці стилі, ТІЛЬКИ ЯКЩО тема = dark"
+/* 2. Стилі календаря за замовчуванням (Світла тема) */
+/* Це потрібно, щоб календар мав висоту */
+.rbc-calendar {
+  height: 600px;
+}
+
+/* === 3. АДАПТАЦІЯ ПІД ТЕМНУ ТЕМУ (BOOTSTRAP 5) === */
 [data-bs-theme="dark"] {
 
-  // Загальний фон календаря та колір тексту
+  /* --- Фон і текст календаря --- */
   .rbc-calendar {
-    background-color: var(--bs-dark-bg-subtle); // Використовуємо темний фон Bootstrap
-    color: var(--bs-light-text); // Використовуємо світлий текст Bootstrap
+    background-color: var(--bs-body-bg); /* Темний фон сторінки */
+    color: var(--bs-body-color);        /* Світлий текст */
   }
 
-  // Колір тексту для кнопок "Сьогодні", "Наст.", "Місяць"
-  .rbc-toolbar .rbc-btn-group button,
-  .rbc-toolbar .rbc-toolbar-label {
-    color: var(--bs-light-text);
-  }
-
-  // Колір тексту для "ПН", "ВТ", "СР"...
+  /* --- Заголовки (ПН, ВТ, СР...) --- */
   .rbc-header {
     color: var(--bs-light-text-emphasis);
+    border-bottom-color: var(--bs-border-color);
   }
 
-  // Колір сітки (ліній)
+  /* --- Сітка (лінії) --- */
   .rbc-month-view,
   .rbc-day-bg,
   .rbc-header,
   .rbc-time-header-content,
   .rbc-time-slot,
-  .rbc-day-slot .rbc-time-slot {
-    border-color: var(--bs-border-color-translucent); // Використовуємо темну сітку Bootstrap
+  .rbc-day-slot .rbc-time-slot,
+  .rbc-header + .rbc-header {
+    border-color: var(--bs-border-color); /* Темно-сірі лінії */
   }
 
-  // Колір "неактивних" днів (іншого місяця)
+  /* --- "Неактивні" дні (іншого місяця) --- */
   .rbc-off-range-bg {
-    background-color: var(--bs-dark); // Робимо їх трохи темнішими
+    background-color: var(--bs-tertiary-bg); /* Трохи світліший сірий */
   }
 
-  // Колір тексту всередині самої події (на синьому фоні)
-  .rbc-event {
-    color: var(--bs-white); // Робимо текст білим
-  }
-
-  // Колір фону для "Сьогодні"
+  /* --- Поточний день (Сьогодні) --- */
   .rbc-today {
-    background-color: var(--bs-primary-bg-subtle); // Використовуємо приглушений синій
-  }
-}
-[data-bs-theme="dark"] {
-
-  // ... (всі твої старі стилі для .rbc-calendar, .rbc-header...)
-
-
-  // === НОВИЙ КОД: Виправлення кольору подій (Менш яскравий) ===
-  .bg-dark {
-    // Замість 'black' (#000), ми використовуємо "трохи світліший"
-    // темно-сірий колір з палітри Bootstrap
-    background-color: var(--bs-tertiary-bg) !important; 
+    /* Напівпрозорий синій фон */
+    background-color: rgba(var(--bs-primary-rgb), 0.15); 
   }
 
+  /* --- Події (Самі смужки нарядів) --- */
   .rbc-event {
-    // === ЗМІНЕНО: Використовуємо 'info' (бірюзовий) замість 'primary' (яскраво-синій) ===
-    background-color: var(--bs-info);
-    border-color: var(--bs-info-border-subtle);
-    color: var(--bs-black); // Для 'info' кольору краще підійде чорний текст
+    /* Ви хотіли 'info' (бірюзовий), він краще читається на темному */
+    background-color: var(--bs-info) !important; 
+    color: #000 !important; /* Чорний текст на світло-бірюзовому фоні */
+    border: none;
+  }
+  
+  /* Подія, яка вибрана (фокус) */
+  .rbc-event.rbc-selected {
+    background-color: var(--bs-primary) !important;
+    color: #fff !important;
   }
 
-  // Стиль для посилання "+3 more" (код без змін)
-  .rbc-show-more {
-    color: var(--bs-light-text-emphasis);
+  /* --- Кнопки навігації (Місяць, Тиждень, Назад...) --- */
+  .rbc-toolbar button {
+    color: var(--bs-body-color);
+    border-color: var(--bs-border-color);
+  }
 
+  .rbc-toolbar button:hover {
+    background-color: var(--bs-tertiary-bg);
+    color: var(--bs-white);
+  }
+
+  .rbc-toolbar button.rbc-active {
+    background-color: var(--bs-primary);
+    color: var(--bs-white);
+    border-color: var(--bs-primary);
+  }
+  
+  /* Текст "Листопад 2025" */
+  .rbc-toolbar-label {
+      color: var(--bs-body-color);
+      font-weight: bold;
+  }
+
+  /* --- Посилання "+3 more" --- */
+  .rbc-show-more {
+    color: var(--bs-link-color) !important;
+    background-color: transparent;
+    font-weight: bold;
+    
     &:hover {
-      color: var(--bs-white);
+      color: var(--bs-link-hover-color) !important;
+      text-decoration: underline;
     }
   }
 }
-
-  // Стиль для посилання "+3 more" (яке у тебе на скріншоті)
-  .rbc-show-more {
-    color: var(--bs-light-text-emphasis); // Робимо текст світлим, але не білим
-
-    &:hover {
-      color: var(--bs-white); // При наведенні - білим
-    }
-  }
