@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Form, Button, Container, Row, Col, Alert } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom'; 
 import axios from 'axios'; 
+import { MILITARY_RANKS, MILITARY_POSITIONS } from '../utils/constants';
 
 export const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -89,34 +90,35 @@ export const RegisterPage: React.FC = () => {
               />
             </Form.Group>
 
-            {/* === ЗВАННЯ (Випадаючий список) === */}
-            <Form.Group className="mb-3" controlId="formBasicRank">
-              <Form.Label>Звання</Form.Label>
-              <Form.Select 
-                value={rank}
-                onChange={(e) => setRank(e.target.value)}
-                required
-              >
-                <option value="">-- Оберіть ваше звання --</option>
-                <option value="солдат">солдат</option>
-                <option value="ст. солдат">ст. солдат</option>
-                <option value="сержант">сержант</option>
-                <option value="ст. сержант">ст. сержант</option>
-                <option value="курсант">курсант</option>
-              </Form.Select>
-            </Form.Group>
+           {/* ЗАМІНИТИ ПОЛЕ ЗВАННЯ НА ЦЕ: */}
+<Form.Group className="mb-3">
+  <Form.Label>Звання</Form.Label>
+  <Form.Select 
+    value={rank} 
+    onChange={(e) => setRank(e.target.value)}
+    required
+  >
+    <option value="" disabled>Оберіть звання...</option>
+    {MILITARY_RANKS.map((r, index) => (
+      <option key={index} value={r}>{r}</option>
+    ))}
+  </Form.Select>
+</Form.Group>
 
-            {/* === ПОСАДА (Текстове поле) === */}
-            <Form.Group className="mb-3" controlId="formBasicPosition">
-              <Form.Label>Посада</Form.Label>
-              <Form.Control 
-                type="text"
-                placeholder="напр., Командир взводу, Стрілець..."
-                value={position}
-                onChange={(e) => setPosition(e.target.value)}
-                required
-              />
-            </Form.Group>
+            {/* ЗАМІНИТИ ПОЛЕ ПОСАДИ НА ЦЕ: */}
+<Form.Group className="mb-3">
+  <Form.Label>Посада</Form.Label>
+  <Form.Select 
+    value={position} 
+    onChange={(e) => setPosition(e.target.value)}
+    required
+  >
+    <option value="" disabled>Оберіть посаду...</option>
+    {MILITARY_POSITIONS.map((p, index) => (
+      <option key={index} value={p}>{p}</option>
+    ))}
+  </Form.Select>
+</Form.Group>
             
             <Form.Group className="mb-3" controlId="formBasicPhone">
               <Form.Label>Номер телефону</Form.Label>

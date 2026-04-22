@@ -30,7 +30,7 @@ export const Header: React.FC = () => {
               <Nav.Link as={NavLink} to="/profile">Мій Профіль</Nav.Link>
             )}
             
-            <Nav.Link as={NavLink} to="/news">Новини</Nav.Link>
+            
             <Nav.Link as={NavLink} to="/contact">Контакти</Nav.Link>
           </Nav>
 

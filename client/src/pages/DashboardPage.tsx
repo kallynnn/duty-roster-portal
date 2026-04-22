@@ -6,7 +6,7 @@ import { Container, Row, Col } from 'react-bootstrap';
 import { SoldierManager } from '../components/SoldierManager';
 import { DutyTypeManager } from '../components/DutyTypeManager';
 import { ScheduleCalendar } from '../components/ScheduleCalendar';
-import { NewsManager } from '../components/NewsManager'; // Не забудь додати NewsManager, якщо ти його використовуєш
+
 
 export const DashboardPage: React.FC = () => {
   const { role } = useAuth(); 
@@ -26,10 +26,6 @@ export const DashboardPage: React.FC = () => {
 
           {/* === 3. ГРАФІК (КАЛЕНДАР) === */}
           <ScheduleCalendar scope="all" />
-
-          {/* === 4. Керування Новинами (якщо треба) === */}
-          {/* <NewsManager /> */}
-
         </Col>
       </Row>
     </Container>

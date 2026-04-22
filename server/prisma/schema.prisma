@@ -26,17 +26,24 @@ enum Role {
 }
 
 model Soldier {
-  id     Int    @id @default(autoincrement())
-  name   String 
-  rank   String 
+  id          Int      @id @default(autoincrement())
+  userId      Int?     @unique
+  user        User?    @relation(fields: [userId], references: [id])
+  name        String
+  rank        String
+  position    String
+  phoneNumber String
+  status      String   @default("ACTIVE")
+  schedules   Schedule[]
+  lastDutyTypeId   Int?
+
+  company     String?  // Рота (напр. "1 Рота")
+  platoon     String?  // Взвод (напр. "2 Взвод")
+  squad       String?  // Відділення (напр. "1 Відділення")
   
-  position    String? 
-  phoneNumber String? 
-  
-  status Status @default(ACTIVE) 
-  userId Int?   @unique
-  user   User?  @relation(fields: [userId], references: [id])
-  duties Schedule[]
+  // ДОДАЄМО ЦІ ДВА РЯДКИ:
+  swapRequestsSent     SwapRequest[] @relation("Requester")
+  swapRequestsReceived SwapRequest[] @relation("TargetSoldier")
 }
 
 enum Status {
@@ -50,29 +57,35 @@ model DutyType {
   name        String   @unique
   description String?
   schedules   Schedule[]
+  personnelCount Int        @default(1) // <--- ДОДАЛИ ЦЕ ПОЛЕ (Скільки людей треба)
   
   allowedRanks String[] @default([]) 
 }
-
 model Schedule {
-  id          Int      @id @default(autoincrement())
-  date        DateTime @db.Date
-  soldier     Soldier  @relation(fields: [soldierId], references: [id])
-  soldierId   Int
-  dutyType    DutyType @relation(fields: [dutyTypeId], references: [id])
-  dutyTypeId  Int
+  id         Int      @id @default(autoincrement())
+  date       DateTime
+  soldierId  Int
+  soldier    Soldier  @relation(fields: [soldierId], references: [id])
+  dutyTypeId Int
+  dutyType   DutyType @relation(fields: [dutyTypeId], references: [id])
+  
+  // ДОДАЄМО ЦЕЙ РЯДОК:
+  swapRequests SwapRequest[]
 }
-
-model News {
-  id        Int      @id @default(autoincrement())
-  title     String
-  content   String   @db.Text
-  imageUrl  String?
-  createdAt DateTime @default(now())
-}
-
-model GalleryImage {
-  id          Int      @id @default(autoincrement())
-  imageUrl    String
-  description String?
+// НОВА МОДЕЛЬ ДЛЯ ЗАПИТІВ НА ОБМІН
+model SwapRequest {
+  id               Int      @id @default(autoincrement())
+  
+  scheduleId       Int      // Який саме наряд хочемо віддати
+  schedule         Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  
+  requesterId      Int      // Хто просить мінятися (Ініціатор)
+  requester        Soldier  @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  
+  targetSoldierId  Int      // Кого просять вийти замість ініціатора
+  targetSoldier    Soldier  @relation("TargetSoldier", fields: [targetSoldierId], references: [id], onDelete: Cascade)
+  
+  status           String   @default("PENDING") // Статуси: PENDING (Очікує), APPROVED (Схвалено), REJECTED (Відхилено)
+  
+  createdAt        DateTime @default(now())
 }
