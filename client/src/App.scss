@@ -1,23 +1,119 @@
-/* index.scss */
+/* ============================================================
+   index.scss — Глобальні стилі DutyPortal
+   ============================================================ */
 
-/* 1. Загальні виправлення */
+/* ── 0. Фоновий логотип ВІТІ ── */
+#root {
+  min-height: 100vh;
+  position: relative;
+}
+
+#root::before {
+  content: '';
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(520px, 80vw);
+  height: min(520px, 80vw);
+  background-image: url('./mitit.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.045;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Вміст поверх фону */
+#root > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── 1. Базові виправлення ── */
 .nav-link {
   text-decoration: none;
 }
 
-/* 2. Стилі календаря за замовчуванням (Світла тема) */
-/* Це потрібно, щоб календар мав висоту */
-.rbc-calendar {
-  height: 600px;
+* {
+  box-sizing: border-box;
 }
 
-/* === 3. АДАПТАЦІЯ ПІД ТЕМНУ ТЕМУ (BOOTSTRAP 5) === */
+/* ── 2. Відступ знизу для мобілки (щоб BottomNav не перекривав контент) ── */
+@media (max-width: 991px) {
+  main {
+    padding-bottom: 80px !important;
+  }
+
+  /* Footer ховаємо на мобілці — bottom nav його замінює */
+  footer {
+    display: none;
+  }
+}
+
+/* ── 3. Адаптація таблиць на мобілці ── */
+@media (max-width: 767px) {
+  /* Панель управління: таблиця прокручується горизонтально */
+  .table-responsive {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Email колонка — ховаємо на малих екранах */
+  .hide-mobile {
+    display: none !important;
+  }
+
+  /* Кнопки дій — менший розмір */
+  .btn-sm {
+    font-size: 0.7rem;
+    padding: 3px 8px;
+  }
+}
+
+/* ── 4. Календар — базові стилі ── */
+.rbc-calendar {
+  /* На десктопі — 600px, на мобілці — менше */
+  height: 600px;
+
+  @media (max-width: 991px) {
+    height: 420px;
+  }
+
+  @media (max-width: 575px) {
+    height: 340px;
+
+    /* На малих екранах ховаємо назви подій, лишаємо лише кольорову смужку */
+    .rbc-event-content {
+      display: none;
+    }
+
+    /* Кнопки навігації — менший шрифт */
+    .rbc-toolbar button {
+      font-size: 0.7rem;
+      padding: 4px 8px;
+    }
+
+    /* Заголовок місяця */
+    .rbc-toolbar-label {
+      font-size: 0.9rem;
+    }
+
+    /* Дні тижня — скорочено */
+    .rbc-header {
+      font-size: 0.65rem;
+      padding: 4px 2px;
+    }
+  }
+}
+
+/* ── 5. Темна тема (Bootstrap 5) ── */
 [data-bs-theme="dark"] {
 
   /* --- Фон і текст календаря --- */
   .rbc-calendar {
-    background-color: var(--bs-body-bg); /* Темний фон сторінки */
-    color: var(--bs-body-color);        /* Світлий текст */
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
   }
 
   /* --- Заголовки (ПН, ВТ, СР...) --- */
@@ -34,35 +130,32 @@
   .rbc-time-slot,
   .rbc-day-slot .rbc-time-slot,
   .rbc-header + .rbc-header {
-    border-color: var(--bs-border-color); /* Темно-сірі лінії */
+    border-color: var(--bs-border-color);
   }
 
-  /* --- "Неактивні" дні (іншого місяця) --- */
+  /* --- Неактивні дні (іншого місяця) --- */
   .rbc-off-range-bg {
-    background-color: var(--bs-tertiary-bg); /* Трохи світліший сірий */
+    background-color: var(--bs-tertiary-bg);
   }
 
-  /* --- Поточний день (Сьогодні) --- */
+  /* --- Поточний день --- */
   .rbc-today {
-    /* Напівпрозорий синій фон */
-    background-color: rgba(var(--bs-primary-rgb), 0.15); 
+    background-color: rgba(var(--bs-primary-rgb), 0.15);
   }
 
-  /* --- Події (Самі смужки нарядів) --- */
+  /* --- Події --- */
   .rbc-event {
-    /* Ви хотіли 'info' (бірюзовий), він краще читається на темному */
-    background-color: var(--bs-info) !important; 
-    color: #000 !important; /* Чорний текст на світло-бірюзовому фоні */
+    background-color: var(--bs-info) !important;
+    color: #000 !important;
     border: none;
   }
-  
-  /* Подія, яка вибрана (фокус) */
+
   .rbc-event.rbc-selected {
     background-color: var(--bs-primary) !important;
     color: #fff !important;
   }
 
-  /* --- Кнопки навігації (Місяць, Тиждень, Назад...) --- */
+  /* --- Кнопки навігації --- */
   .rbc-toolbar button {
     color: var(--bs-body-color);
     border-color: var(--bs-border-color);
@@ -78,19 +171,18 @@
     color: var(--bs-white);
     border-color: var(--bs-primary);
   }
-  
-  /* Текст "Листопад 2025" */
+
   .rbc-toolbar-label {
-      color: var(--bs-body-color);
-      font-weight: bold;
+    color: var(--bs-body-color);
+    font-weight: bold;
   }
 
-  /* --- Посилання "+3 more" --- */
+  /* --- Посилання "+N more" --- */
   .rbc-show-more {
     color: var(--bs-link-color) !important;
     background-color: transparent;
     font-weight: bold;
-    
+
     &:hover {
       color: var(--bs-link-hover-color) !important;
       text-decoration: underline;

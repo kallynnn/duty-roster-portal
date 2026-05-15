@@ -10,8 +10,8 @@ export const AboutPage: React.FC = () => {
             <Card.Body className="p-4 p-md-5">
               <h2 className="text-center mb-4">Про проєкт "DutyPortal"</h2>
 
-              <p className="lead">
-                Цей веб-портал є курсовим проєктом з дисципліни "Веб-технології та веб-дизайн".
+              <p className="text-center mb-4">
+                Цей веб-портал є Дипломним проєктом".
               </p>
 
               <hr className="my-4" />

@@ -9,11 +9,9 @@ interface IDutyType {
   id: number;
   name: string;
   description: string | null;
-  // Поле зі списком дозволених звань
   allowedRanks: string[]; 
 }
 
-// Список звань, які ти можеш обирати (відповідає твоїй формі реєстрації)
 const ALL_RANKS = ['солдат', 'ст. солдат', 'сержант', 'ст. сержант', 'курсант'];
 
 export const DutyTypeManager: React.FC = () => {
@@ -21,40 +19,25 @@ export const DutyTypeManager: React.FC = () => {
   const { showToast } = useToast();
   const { ask } = useConfirm();
 
-  // Стани для форми ДОДАВАННЯ
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [formError, setFormError] = useState('');
   const [newRanks, setNewRanks] = useState<string[]>([]);
   
-  // Стани для модального вікна РЕДАГУВАННЯ
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingDutyType, setEditingDutyType] = useState<IDutyType | null>(null);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editRanks, setEditRanks] = useState<string[]>([]);
 
-  // --- Обробники ---
-
-  // Обробник зміни чекбоксів для форми ДОДАВАННЯ
   const handleNewRankChange = (rank: string) => {
-    setNewRanks(prevRanks => 
-      prevRanks.includes(rank)
-        ? prevRanks.filter(r => r !== rank) // Видалити
-        : [...prevRanks, rank] // Додати
-    );
+    setNewRanks(prev => prev.includes(rank) ? prev.filter(r => r !== rank) : [...prev, rank]);
   };
 
-  // Обробник зміни чекбоксів для форми РЕДАГУВАННЯ
   const handleEditRankChange = (rank: string) => {
-    setEditRanks(prevRanks => 
-      prevRanks.includes(rank)
-        ? prevRanks.filter(r => r !== rank)
-        : [...prevRanks, rank]
-    );
+    setEditRanks(prev => prev.includes(rank) ? prev.filter(r => r !== rank) : [...prev, rank]);
   };
   
-  // ДОДАВАННЯ (з 'allowedRanks')
   const handleAddDutyType = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
@@ -64,35 +47,34 @@ export const DutyTypeManager: React.FC = () => {
       setDescription('');
       setNewRanks([]); 
       refetch(); 
+      showToast('Вид наряду успішно додано', 'success');
     } catch (err) {
       setFormError('Помилка додавання. Перевірте поля.');
     }
   };
   
-  // ВИДАЛЕННЯ (каскадне)
- const handleDelete = (id: number, name: string) => { // Додаємо 'name' для краси
-  ask({
-    title: 'Підтвердити Видалення',
-    message: `Ви впевнені, що хочете видалити солдата "${name}"? Це також видалить його з графіка.`,
-
-    onConfirm: async () => {
-      try {
-        await axios.delete(`/api/soldiers/${id}`);
-        showToast('Солдата успішно видалено', 'success');
-        refetch(); // Оновлюємо список
-      } catch (err: any) {
-        showToast(err.response?.data?.message || 'Помилка видалення', 'danger');
+  // 🔴 ВИПРАВЛЕНО: був /api/soldiers/${id} — тепер правильний endpoint
+  const handleDelete = (id: number, name: string) => {
+    ask({
+      title: 'Підтвердити Видалення',
+      message: `Ви впевнені, що хочете видалити вид наряду "${name}"? Це також видалить пов'язані записи графіку.`,
+      onConfirm: async () => {
+        try {
+          await axios.delete(`/api/duty-types/${id}`);
+          showToast('Вид наряду успішно видалено', 'success');
+          refetch();
+        } catch (err: any) {
+          showToast(err.response?.data?.message || 'Помилка видалення', 'danger');
+        }
       }
-    }
-  });
-};
+    });
+  };
 
-  // ВІДКРИТИ МОДАЛЬНЕ ВІКНО РЕДАГУВАННЯ
   const handleShowEditModal = (dutyType: IDutyType) => {
     setEditingDutyType(dutyType);
     setEditName(dutyType.name);
     setEditDescription(dutyType.description || '');
-    setEditRanks(dutyType.allowedRanks.map(r => r.toLowerCase())); // Переводимо в нижній регістр
+    setEditRanks(dutyType.allowedRanks.map(r => r.toLowerCase()));
     setShowEditModal(true);
   };
 
@@ -104,11 +86,9 @@ export const DutyTypeManager: React.FC = () => {
     setEditRanks([]);
   };
 
-  // ОНОВИТИ (з 'allowedRanks')
   const handleUpdateDutyType = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingDutyType) return;
-
     try {
       await axios.put(`/api/duty-types/${editingDutyType.id}`, {
         name: editName,
@@ -123,7 +103,6 @@ export const DutyTypeManager: React.FC = () => {
     }
   };
 
-  // --- JSX Розмітка ---
   return (
     <div>
       <hr className="my-4" />
@@ -133,20 +112,30 @@ export const DutyTypeManager: React.FC = () => {
         <Row className="align-items-end">
           <Col md={5}>
             <Form.Label>Назва наряду</Form.Label>
-            <Form.Control type="text" placeholder="Назва (напр., 'Черговий роти')" value={name} onChange={(e) => setName(e.target.value)} required />
+            <Form.Control
+              type="text"
+              placeholder="Назва (напр., 'Черговий роти')"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
           </Col>
           <Col md={4}>
             <Form.Label>Опис</Form.Label>
-            <Form.Control type="text" placeholder="Опис (опціонально)" value={description} onChange={(e) => setDescription(e.target.value)} />
+            <Form.Control
+              type="text"
+              placeholder="Опис (опціонально)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </Col>
           <Col md={3}>
             <Button type="submit" className="w-100">Додати вид</Button>
           </Col>
         </Row>
         
-        {/* Чекбокси для звань (Форма ДОДАВАННЯ) */}
         <Form.Group className="mt-3">
-          <Form.Label>Дозволені звання (Якщо нічого не обрано - дозволено всім)</Form.Label>
+          <Form.Label>Дозволені звання (Якщо нічого не обрано — дозволено всім)</Form.Label>
           <div className="d-flex flex-wrap gap-3">
             {ALL_RANKS.map(rank => (
               <Form.Check 
@@ -171,8 +160,9 @@ export const DutyTypeManager: React.FC = () => {
           <tr>
             <th>#</th>
             <th>Назва</th>
+            <th>Опис</th>
             <th>Дозволені звання</th>
-            <th>Дії (загальні)</th>
+            <th>Дії</th>
           </tr>
         </thead>
         <tbody>
@@ -180,7 +170,7 @@ export const DutyTypeManager: React.FC = () => {
             <tr key={duty.id}>
               <td>{duty.id}</td>
               <td>{duty.name}</td>
-              {/* Відображення звань */}
+              <td><small className="text-muted">{duty.description || '—'}</small></td>
               <td>
                 {duty.allowedRanks.length > 0 
                   ? duty.allowedRanks.join(', ') 
@@ -189,6 +179,7 @@ export const DutyTypeManager: React.FC = () => {
               </td>
               <td>
                 <Button variant="warning" size="sm" className="me-2" onClick={() => handleShowEditModal(duty)}>Ред.</Button>
+                {/* 🔴 ВИПРАВЛЕНО: передаємо duty.name замість duty.id для відображення у confirm */}
                 <Button variant="danger" size="sm" onClick={() => handleDelete(duty.id, duty.name)}>Вид.</Button>
               </td>
             </tr>
@@ -196,12 +187,11 @@ export const DutyTypeManager: React.FC = () => {
         </tbody>
       </Table>
 
-      {/* Модальне вікно для Редагування */}
       <Modal show={showEditModal} onHide={handleCloseEditModal}>
-         <Modal.Header closeButton>
+        <Modal.Header closeButton>
           <Modal.Title>Редагувати вид наряду</Modal.Title>
-         </Modal.Header>
-         <Form onSubmit={handleUpdateDutyType}>
+        </Modal.Header>
+        <Form onSubmit={handleUpdateDutyType}>
           <Modal.Body>
             <Form.Group className="mb-3">
               <Form.Label>Назва</Form.Label>
@@ -211,10 +201,8 @@ export const DutyTypeManager: React.FC = () => {
               <Form.Label>Опис</Form.Label>
               <Form.Control type="text" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
             </Form.Group>
-            
-            {/* Чекбокси для звань (Форма РЕДАГУВАННЯ) */}
             <Form.Group className="mt-3">
-              <Form.Label>Дозволені звання (Якщо нічого не обрано - дозволено всім)</Form.Label>
+              <Form.Label>Дозволені звання (Якщо нічого не обрано — дозволено всім)</Form.Label>
               <div className="d-flex flex-wrap gap-3">
                 {ALL_RANKS.map(rank => (
                   <Form.Check 
@@ -228,15 +216,13 @@ export const DutyTypeManager: React.FC = () => {
                 ))}
               </div>
             </Form.Group>
-            
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={handleCloseEditModal}>Скасувати</Button>
             <Button variant="primary" type="submit">Зберегти зміни</Button>
           </Modal.Footer>
-         </Form>
+        </Form>
       </Modal>
-
     </div>
   );
 };

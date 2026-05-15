@@ -2,64 +2,57 @@ import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ThemeToggleButton } from './ThemeToggleButton';
-// === НОВЕ: Імпортуємо компоненти Navbar, Nav, Container ===
 import { Navbar, Nav, Container, Button } from 'react-bootstrap';
 
 export const Header: React.FC = () => {
   const { isAuthenticated, logout, role } = useAuth();
+  const isCommander = role === 'COMMANDER' || role === 'ADMIN';
 
   return (
-    // expand="lg" означає: на великих екранах меню розгорнуте, на менших - "бургер"
     <Navbar bg="dark" variant="dark" expand="lg" sticky="top" className="p-3">
       <Container>
-        {/* Логотип */}
-        <Navbar.Brand as={NavLink} to="/">
+        <Navbar.Brand as={NavLink} to="/" style={{ fontWeight: 700, letterSpacing: '-0.3px' }}>
           DutyPortal
         </Navbar.Brand>
 
-        {/* Кнопка "Бургер" (з'являється тільки на мобільних) */}
-        <Navbar.Toggle aria-controls="basic-navbar-nav" />
+        <div className="header-actions-mobile ms-auto">
+          <ThemeToggleButton />
+          {isAuthenticated && (
+            <Button variant="outline-light" size="sm" onClick={logout}>Вийти</Button>
+          )}
+          {!isAuthenticated && (
+            <Link to="/login" className="btn btn-outline-light btn-sm">Увійти</Link>
+          )}
+        </div>
 
-        {/* Все, що всередині Collapse, буде ховатися в меню */}
         <Navbar.Collapse id="basic-navbar-nav">
-          <Nav className="me-auto gap-2">
+          <Nav className="me-auto gap-2 header-nav-links">
             <Nav.Link as={NavLink} to="/">Головна</Nav.Link>
             <Nav.Link as={NavLink} to="/about">Про сайт</Nav.Link>
-            
             {isAuthenticated && (
               <Nav.Link as={NavLink} to="/profile">Мій Профіль</Nav.Link>
             )}
-            
-            
+            {isCommander && (
+              <Nav.Link as={NavLink} to="/duty-map">Карта чергувань</Nav.Link>
+            )}
             <Nav.Link as={NavLink} to="/contact">Контакти</Nav.Link>
           </Nav>
 
-          {/* Права частина (Кнопки + Тема) */}
-          <div className="d-flex gap-2 align-items-center mt-3 mt-lg-0">
+          <div className="header-actions-full d-flex gap-2 align-items-center">
             {isAuthenticated ? (
               <>
-                {(role === 'COMMANDER' || role === 'ADMIN') ? (
-                  <Link to="/dashboard" className="btn btn-primary btn-sm">
-                    Панель управління
-                  </Link>
+                {isCommander ? (
+                  <Link to="/dashboard" className="btn btn-primary btn-sm">Панель управління</Link>
                 ) : (
-                  <Link to="/my-schedule" className="btn btn-primary btn-sm">
-                    Мій Графік
-                  </Link>
+                  <Link to="/my-schedule" className="btn btn-primary btn-sm">Мій Графік</Link>
                 )}
-                
-                <Button variant="outline-light" size="sm" onClick={logout}>
-                  Вийти
-                </Button>
+                <Button variant="outline-light" size="sm" onClick={logout}>Вийти</Button>
               </>
             ) : (
-              <Link to="/login" className="btn btn-outline-light btn-sm">
-                Увійти
-              </Link>
+              <Link to="/login" className="btn btn-outline-light btn-sm">Увійти</Link>
             )}
-            
             <div className="ms-2">
-               <ThemeToggleButton />
+              <ThemeToggleButton />
             </div>
           </div>
         </Navbar.Collapse>

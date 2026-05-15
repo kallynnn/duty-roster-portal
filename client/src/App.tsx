@@ -1,71 +1,106 @@
 import React from 'react';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AdminRoute } from './components/AdminRoute';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './App.scss';
+import './styles.scss';
 
-// 1. Імпортуємо наші компоненти
+// Провайдери
+import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { ToastProvider } from './context/ToastContext';
+import { ConfirmProvider } from './context/ConfirmContext';
+
+// Компоненти
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
-import { ProtectedRoute } from './components/ProtectedRoute';
+import { BottomNav } from './components/BottomNav';
 
-// 2. Імпортуємо наші сторінки
+// Сторінки
 import { HomePage } from './pages/HomePage';
-import { AboutPage } from './pages/AboutPage';
-import { MyProfilePage } from './pages/MyProfilePage';
-import { ContactPage } from './pages/ContactPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { AboutPage } from './pages/AboutPage';
+import { ContactPage } from './pages/ContactPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { MyProfilePage } from './pages/MyProfilePage';
+import { MySchedulePage } from './pages/MySchedulePage';
+import { DutyMapPage } from './pages/DutyMapPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
-// 3. Імпортуємо стилі
-import './App.scss';
+// Охоронці маршрутів
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { AdminRoute } from './components/AdminRoute';
 
 function App() {
   return (
-    <BrowserRouter>
-      <div className="d-flex flex-column min-vh-100">
-        <Header />
+    <ThemeProvider>
+      <AuthProvider>
+        <ToastProvider>
+          <ConfirmProvider>
+            <Router>
+              <div className="d-flex flex-column min-vh-100">
+                <Header />
 
-        <main className="container my-4 flex-grow-1">
-          {/* УСІ МАРШРУТИ МАЮТЬ БУТИ ВСЕРЕДИНІ <Routes> */}
-          <Routes>
-           <Route 
-  path="/" 
-  element={
-    <ProtectedRoute>
-      <HomePage />
-    </ProtectedRoute>
-  } 
-/>
-            <Route path="/about" element={<AboutPage />} />
-            
-            <Route 
-              path="/profile" 
-              element={
-                <ProtectedRoute>
-                  <MyProfilePage />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            
-            <Route 
-              path="/dashboard" 
-              element={
-                <AdminRoute>
-                  <DashboardPage />
-                </AdminRoute>
-              }
-            />
-          </Routes>
-        </main>
+                <main className="flex-grow-1 py-4">
+                  <Routes>
+                    {/* Публічні маршрути */}
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/about" element={<AboutPage />} />
+                    <Route path="/contact" element={<ContactPage />} />
 
-        <Footer />
-      </div>
-    </BrowserRouter>
+                    {/* Захищені маршрути */}
+                    <Route
+                      path="/profile"
+                      element={
+                        <ProtectedRoute>
+                          <MyProfilePage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/my-schedule"
+                      element={
+                        <ProtectedRoute>
+                          <MySchedulePage />
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* Тільки для Командира / Адміна */}
+                    <Route
+                      path="/dashboard"
+                      element={
+                        <AdminRoute>
+                          <DashboardPage />
+                        </AdminRoute>
+                      }
+                    />
+                    <Route
+                      path="/duty-map"
+                      element={
+                        <AdminRoute>
+                          <DutyMapPage />
+                        </AdminRoute>
+                      }
+                    />
+
+                    {/* 404 */}
+                    <Route path="*" element={<NotFoundPage />} />
+                  </Routes>
+                </main>
+
+                <Footer />
+
+                {/* Мобільна навігація — показується тільки на екранах < 992px */}
+                <BottomNav />
+              </div>
+            </Router>
+          </ConfirmProvider>
+        </ToastProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
