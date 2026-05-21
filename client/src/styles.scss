@@ -2109,3 +2109,80 @@
     padding: 28px 20px;
   }
 }
+
+
+// ── 16. PROFILE EDIT ────────────────────────────────────────
+
+.profile-edit-btn {
+  background: none;
+  border: 1.5px solid var(--bs-border-color);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--bs-secondary-color);
+  transition: all 0.15s;
+  flex-shrink: 0;
+
+  &:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    background: rgba(59,130,246,0.06);
+  }
+}
+
+.hero-contacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.hero-contact-item {
+  font-size: 0.78rem;
+  color: var(--bs-secondary-color);
+  background: var(--bs-tertiary-bg);
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+
+.profile-edit-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--bs-secondary-color);
+  margin-bottom: 6px;
+}
+
+.profile-edit-input {
+  border-radius: 10px !important;
+  border: 1.5px solid var(--bs-border-color) !important;
+  background: var(--bs-tertiary-bg) !important;
+  color: var(--bs-body-color) !important;
+  font-size: 0.92rem !important;
+
+  &:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important;
+  }
+}
+
+.profile-edit-error {
+  padding: 10px 14px;
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 8px;
+  font-size: 0.84rem;
+  color: #ef4444;
+}
+
+.profile-edit-success {
+  padding: 10px 14px;
+  background: rgba(34,197,94,0.1);
+  border: 1px solid rgba(34,197,94,0.3);
+  border-radius: 8px;
+  font-size: 0.84rem;
+  color: #22c55e;
+  font-weight: 600;
+}

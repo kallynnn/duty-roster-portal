@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Alert, Modal, Form, Button, Spinner } from 'react-bootstrap';
+import { Container, Alert, Modal, Form, Button, Spinner, Row, Col } from 'react-bootstrap';
 import axios from 'axios';
 import { Sk } from '../components/Skeleton';
+import { useAuth } from '../context/AuthContext';
 
 interface ScheduleItem {
   id: number; date: string;
@@ -11,6 +12,7 @@ interface ScheduleItem {
 interface SoldierProfile {
   name: string; rank: string; position: string; status: string;
   platoon?: string; squad?: string; company?: string;
+  phoneNumber?: string; birthDate?: string;
 }
 interface ProfileData {
   soldier: SoldierProfile; schedules: ScheduleItem[];
@@ -27,6 +29,7 @@ interface SwapRequest {
 const getDaysDiff = (d: string) => { const t = new Date(); t.setHours(0,0,0,0); const s = new Date(d); s.setHours(0,0,0,0); return Math.round((s.getTime()-t.getTime())/86400000); };
 const formatDate  = (d: string) => new Date(d).toLocaleDateString('uk-UA', { day:'2-digit', month:'long', weekday:'short' });
 const formatShort = (d: string) => new Date(d).toLocaleDateString('uk-UA', { day:'2-digit', month:'2-digit' });
+const formatBirth = (d: string) => new Date(d).toLocaleDateString('uk-UA', { day:'2-digit', month:'long', year:'numeric' });
 const getInitials = (n: string) => n.split(' ').map(w=>w[0]).slice(0,2).join('');
 
 const STATUS_COLOR: Record<string,string> = { ACTIVE:'#22c55e', LEAVE:'#f59e0b', SICK:'#ef4444' };
@@ -75,6 +78,7 @@ const ProfileSkeleton: React.FC = () => (
 );
 
 export const MyProfilePage: React.FC = () => {
+  const { login, role } = useAuth();
   const [profileData,    setProfileData]    = useState<ProfileData|null>(null);
   const [loading,        setLoading]        = useState(true);
   const [error,          setError]          = useState('');
@@ -87,6 +91,16 @@ export const MyProfilePage: React.FC = () => {
   const [swapSent,       setSwapSent]       = useState<number[]>([]);
   const [swapRequests,   setSwapRequests]   = useState<SwapRequest[]>([]);
 
+  // ── Редагування профілю ──
+  const [editModal,    setEditModal]    = useState(false);
+  const [editEmail,    setEditEmail]    = useState('');
+  const [editPhone,    setEditPhone]    = useState('');
+  const [editBirth,    setEditBirth]    = useState('');
+  const [editLoading,  setEditLoading]  = useState(false);
+  const [editError,    setEditError]    = useState('');
+  const [editSuccess,  setEditSuccess]  = useState(false);
+  const [userEmail,    setUserEmail]    = useState('');
+
   const loadSwapRequests = async () => {
     try {
       const r = await axios.get('/api/swap-requests');
@@ -96,9 +110,13 @@ export const MyProfilePage: React.FC = () => {
   };
 
   useEffect(() => {
-    axios.get('/api/schedule/my')
-      .then(r => setProfileData(r.data))
-      .catch(e => setError(e.response?.data?.message || 'Помилка завантаження'))
+    Promise.all([
+      axios.get('/api/schedule/my'),
+      axios.get('/api/auth/me'),
+    ]).then(([profileRes, meRes]) => {
+      setProfileData(profileRes.data);
+      setUserEmail(meRes.data.email || '');
+    }).catch(e => setError(e.response?.data?.message || 'Помилка завантаження'))
       .finally(() => setLoading(false));
     loadSwapRequests();
   }, []);
@@ -124,6 +142,47 @@ export const MyProfilePage: React.FC = () => {
   const handleAction = async (id: number, action: 'approve'|'reject') => {
     try { await axios.patch(`/api/swap-requests/${id}`, { action }); await loadSwapRequests(); }
     catch (e:any) { alert(e.response?.data?.message || 'Помилка'); }
+  };
+
+  const openEditModal = () => {
+    if (!profileData) return;
+    setEditEmail(userEmail);
+    setEditPhone(profileData.soldier.phoneNumber || '');
+    setEditBirth(
+      profileData.soldier.birthDate
+        ? new Date(profileData.soldier.birthDate).toISOString().slice(0, 10)
+        : ''
+    );
+    setEditError(''); setEditSuccess(false);
+    setEditModal(true);
+  };
+
+  const handleEditSave = async () => {
+    setEditLoading(true); setEditError(''); setEditSuccess(false);
+    try {
+      const { data } = await axios.patch('/api/profile/me', {
+        email:       editEmail.trim() || undefined,
+        phoneNumber: editPhone,
+        birthDate:   editBirth || null,
+      });
+      // Оновлюємо локальний стан
+      setUserEmail(data.user.email);
+      setProfileData(prev => prev ? {
+        ...prev,
+        soldier: {
+          ...prev.soldier,
+          phoneNumber: data.user.soldier?.phoneNumber,
+          birthDate:   data.user.soldier?.birthDate,
+        }
+      } : prev);
+      // Якщо email змінився — оновлюємо в localStorage (без зміни токена)
+      if (data.user.email !== userEmail) {
+        login(localStorage.getItem('auth-token') || '', role || '', false);
+      }
+      setEditSuccess(true);
+    } catch (e: any) {
+      setEditError(e.response?.data?.message || 'Помилка збереження');
+    } finally { setEditLoading(false); }
   };
 
   if (loading) return <ProfileSkeleton />;
@@ -154,6 +213,61 @@ export const MyProfilePage: React.FC = () => {
 
   return (
     <>
+      {/* ══ МОДАЛКА: РЕДАГУВАННЯ ПРОФІЛЮ ══ */}
+      <Modal show={editModal} onHide={() => setEditModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title style={{fontSize:'1rem',fontWeight:700}}>✏️ Редагування профілю</Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{padding:'1.5rem'}}>
+
+          <Row className="g-3">
+            <Col xs={12}>
+              <Form.Label className="profile-edit-label">✉️ Email</Form.Label>
+              <Form.Control
+                type="email"
+                value={editEmail}
+                onChange={e => setEditEmail(e.target.value)}
+                placeholder="your@viti.edu.ua"
+                className="profile-edit-input"
+              />
+            </Col>
+            <Col xs={12}>
+              <Form.Label className="profile-edit-label">📞 Номер телефону</Form.Label>
+              <Form.Control
+                type="tel"
+                value={editPhone}
+                onChange={e => setEditPhone(e.target.value)}
+                placeholder="+380XXXXXXXXX"
+                className="profile-edit-input"
+              />
+            </Col>
+            <Col xs={12}>
+              <Form.Label className="profile-edit-label">🎂 Дата народження</Form.Label>
+              <Form.Control
+                type="date"
+                value={editBirth}
+                onChange={e => setEditBirth(e.target.value)}
+                className="profile-edit-input"
+                max={new Date().toISOString().slice(0,10)}
+              />
+            </Col>
+          </Row>
+
+          {editError   && <div className="profile-edit-error mt-3">⚠️ {editError}</div>}
+          {editSuccess && <div className="profile-edit-success mt-3">✓ Профіль оновлено успішно!</div>}
+        </Modal.Body>
+        <Modal.Footer style={{gap:8}}>
+          <Button variant="outline-secondary" onClick={() => setEditModal(false)}>Скасувати</Button>
+          <Button
+            onClick={handleEditSave}
+            disabled={editLoading}
+            style={{background:'#3b82f6',border:'none',borderRadius:'10px',fontWeight:600}}
+          >
+            {editLoading ? <Spinner animation="border" size="sm"/> : 'Зберегти'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
       {/* ══ МОДАЛКА: ЗАПИТ НА ЗАМІНУ ══ */}
       <Modal show={swapModal} onHide={()=>setSwapModal(false)} centered>
         <Modal.Header closeButton style={{background:'#1e3a5f',borderBottom:'none'}}>
@@ -190,7 +304,10 @@ export const MyProfilePage: React.FC = () => {
         <div className="hero-card">
           <div className="hero-avatar">{getInitials(soldier.name)}</div>
           <div style={{flex:1,minWidth:0}}>
-            <p className="hero-name">{soldier.name}</p>
+            <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8}}>
+              <p className="hero-name" style={{margin:0}}>{soldier.name}</p>
+              <button className="profile-edit-btn" onClick={openEditModal} title="Редагувати профіль">✏️</button>
+            </div>
             <p className="hero-sub">{soldier.rank} · {soldier.position}</p>
             <div className="hero-badges">
               {soldier.company && <span className="hero-badge">🏢 {soldier.company}</span>}
@@ -200,6 +317,18 @@ export const MyProfilePage: React.FC = () => {
                 <span className="hero-status-dot" style={{background:STATUS_COLOR[soldier.status]??'#22c55e'}}/>
                 {STATUS_LABEL[soldier.status]??soldier.status}
               </span>
+            </div>
+            {/* Контактні дані */}
+            <div className="hero-contacts">
+              {userEmail && (
+                <span className="hero-contact-item">✉️ {userEmail}</span>
+              )}
+              {soldier.phoneNumber && soldier.phoneNumber !== 'Не вказано' && (
+                <span className="hero-contact-item">📞 {soldier.phoneNumber}</span>
+              )}
+              {soldier.birthDate && (
+                <span className="hero-contact-item">🎂 {formatBirth(soldier.birthDate)}</span>
+              )}
             </div>
           </div>
         </div>

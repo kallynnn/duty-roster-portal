@@ -34,6 +34,7 @@ model Soldier {
   rank           String
   position       String
   phoneNumber    String
+  birthDate      DateTime?
   status         String    @default("ACTIVE")
   company        String?
   platoon        String?

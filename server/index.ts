@@ -145,6 +145,41 @@ app.get('/api/auth/me', authMiddleware, async (req: Request, res: Response) => {
   } catch { res.status(500).json({ message: 'Помилка отримання даних профілю' }); }
 });
 
+// Оновлення власного профілю (пошта, телефон, дата народження)
+app.patch('/api/profile/me', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.user!;
+    const { email, phoneNumber, birthDate } = req.body;
+
+    // Оновлюємо email якщо передано
+    if (email) {
+      const trimmed = email.trim().toLowerCase();
+      const existing = await prisma.user.findFirst({ where: { email: trimmed, NOT: { id: userId } } });
+      if (existing) return res.status(400).json({ message: 'Цей email вже використовується' });
+      await prisma.user.update({ where: { id: userId }, data: { email: trimmed } });
+    }
+
+    // Оновлюємо дані солдата якщо передано
+    const soldierData: Record<string, unknown> = {};
+    if (phoneNumber !== undefined) soldierData.phoneNumber = phoneNumber.trim() || 'Не вказано';
+    if (birthDate   !== undefined) soldierData.birthDate   = birthDate ? new Date(birthDate) : null;
+
+    if (Object.keys(soldierData).length > 0) {
+      await prisma.soldier.updateMany({ where: { userId }, data: soldierData });
+    }
+
+    // Повертаємо оновлені дані
+    const updated = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { soldier: true },
+    });
+    res.json({ message: 'Профіль оновлено', user: updated });
+  } catch (error) {
+    console.error('ПОМИЛКА ОНОВЛЕННЯ ПРОФІЛЮ:', error);
+    res.status(500).json({ message: 'Помилка збереження профілю' });
+  }
+});
+
 // ===================================================
 // === ONBOARDING ===
 // ===================================================
