@@ -22,19 +22,35 @@ app.use(cors());
 
 const getPythonCmd = (): string => process.platform === 'win32' ? 'python' : 'python3';
 
-// Посади → ролі
-const STARSHYNA_POSITIONS = ['Старшина роти'];
-const COMMANDER_POSITIONS = ['Командир відділення','Заступник командира взводу','Командир взводу','Заступник командира роти','Командир роти'];
+// =============================================
+// === RBAC — права доступу за ролями ===
+// =============================================
 
-const getRoleByPosition = (position: string): Role => {
-  if (STARSHYNA_POSITIONS.includes(position)) return 'STARSHYNA';
-  if (COMMANDER_POSITIONS.includes(position)) return 'COMMANDER';
-  return 'SOLDIER';
+// Посади → ролі (використовується тільки на onboarding)
+const POSITION_TO_ROLE: Record<string, Role> = {
+  'Курсант':              'CADET',
+  'Командир відділення':  'SQUAD_COMMANDER',
+  'Командир групи':       'GROUP_COMMANDER',
+  'Старшина курсу':       'COURSE_SERGEANT',
+  'Начальник курсу':      'COURSE_HEAD',
+  'Начальник факультету': 'FACULTY_HEAD',
 };
 
-// Чи може роль затверджувати заміни
-const canApproveSwaps = (role: string) =>
-  role === 'COMMANDER' || role === 'ADMIN' || role === 'STARSHYNA';
+// Які ролі потребують секретного коду
+const ROLES_REQUIRING_CODE: Role[] = ['COURSE_SERGEANT', 'COURSE_HEAD', 'FACULTY_HEAD'];
+
+// Invite codes зберігаються в .env
+const INVITE_CODES: Record<string, string> = {
+  COURSE_SERGEANT: process.env.INVITE_CODE_COURSE_SERGEANT || '',
+  COURSE_HEAD:     process.env.INVITE_CODE_COURSE_HEAD     || '',
+  FACULTY_HEAD:    process.env.INVITE_CODE_FACULTY_HEAD    || '',
+};
+
+// Перевірки прав
+const canApproveSwaps     = (role: string) => ['COURSE_SERGEANT', 'COURSE_HEAD', 'FACULTY_HEAD', 'ADMIN'].includes(role);
+const canGenerateSchedule = (role: string) => ['COURSE_SERGEANT', 'ADMIN'].includes(role);
+const canManualSwap       = (role: string) => ['COURSE_SERGEANT', 'ADMIN'].includes(role);
+const canViewDashboard    = (role: string) => ['SQUAD_COMMANDER', 'GROUP_COMMANDER', 'COURSE_SERGEANT', 'COURSE_HEAD', 'FACULTY_HEAD', 'ADMIN'].includes(role);
 
 const DUTY_POINT_MAP: Record<string, { point: string; section: 'duties' | 'fire' | 'day'; is_senior?: boolean }> = {
   'Черговий курсу':                         { point: '1.1',  section: 'duties' },
@@ -89,16 +105,15 @@ app.post('/api/auth/register', [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ message: errors.array()[0].msg });
-    const { email, password, name, rank, phoneNumber, position } = req.body;
+    const { email, password, name, rank, phoneNumber } = req.body;
     if (await prisma.user.findUnique({ where: { email } }))
       return res.status(400).json({ message: 'Користувач з таким email вже існує' });
     const hashedPassword = await bcrypt.hash(password, 12);
-    const safePosition = position || 'Курсант';
-    const userRole = getRoleByPosition(safePosition);
+    // Всі нові юзери — CADET + isFirstLogin=true; роль видається після onboarding
     await prisma.user.create({
       data: {
-        email, password: hashedPassword, role: userRole,
-        soldier: { create: { name, rank: rank || 'Солдат', position: safePosition, phoneNumber: phoneNumber || 'Не вказано', status: 'ACTIVE' } }
+        email, password: hashedPassword, role: 'CADET', isFirstLogin: true,
+        soldier: { create: { name, rank: rank || 'Курсант', position: 'Курсант', phoneNumber: phoneNumber || 'Не вказано', status: 'ACTIVE' } }
       },
       include: { soldier: true }
     });
@@ -117,8 +132,8 @@ app.post('/api/auth/login', [
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !await bcrypt.compare(password, user.password))
       return res.status(400).json({ message: 'Невірний email або пароль' });
-    const token = jwt.sign({ userId: user.id, role: user.role, email: user.email }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
-    res.json({ token, userId: user.id, role: user.role });
+    const token = jwt.sign({ userId: user.id, role: user.role, email: user.email }, process.env.JWT_SECRET as string, { expiresIn: '8h' });
+    res.json({ token, userId: user.id, role: user.role, isFirstLogin: user.isFirstLogin });
   } catch { res.status(500).json({ message: 'Щось пішло не так...' }); }
 });
 
@@ -126,8 +141,57 @@ app.get('/api/auth/me', authMiddleware, async (req: Request, res: Response) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.user!.userId }, include: { soldier: true } });
     if (!user) return res.status(404).json({ message: 'Користувача не знайдено' });
-    res.json({ id: user.id, email: user.email, role: user.role, soldier: user.soldier });
+    res.json({ id: user.id, email: user.email, role: user.role, isFirstLogin: user.isFirstLogin, soldier: user.soldier });
   } catch { res.status(500).json({ message: 'Помилка отримання даних профілю' }); }
+});
+
+// ===================================================
+// === ONBOARDING ===
+// ===================================================
+
+app.post('/api/auth/onboarding', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.user!;
+    const { position, inviteCode } = req.body;
+
+    if (!position || !POSITION_TO_ROLE[position]) {
+      return res.status(400).json({ message: 'Оберіть коректну посаду' });
+    }
+
+    const targetRole: Role = POSITION_TO_ROLE[position];
+
+    // Якщо роль потребує коду — перевіряємо
+    if (ROLES_REQUIRING_CODE.includes(targetRole)) {
+      const expectedCode = INVITE_CODES[targetRole];
+      if (!inviteCode || inviteCode.trim() !== expectedCode) {
+        return res.status(403).json({ message: 'Невірний секретний код доступу' });
+      }
+    }
+
+    // Оновлюємо user: роль + isFirstLogin = false
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { role: targetRole, isFirstLogin: false },
+    });
+
+    // Оновлюємо position в Soldier
+    await prisma.soldier.updateMany({
+      where: { userId },
+      data: { position },
+    });
+
+    // Повертаємо новий токен з оновленою роллю
+    const newToken = jwt.sign(
+      { userId: updatedUser.id, role: updatedUser.role, email: updatedUser.email },
+      process.env.JWT_SECRET as string,
+      { expiresIn: '8h' }
+    );
+
+    res.json({ message: 'Профіль налаштовано', token: newToken, role: updatedUser.role, isFirstLogin: false });
+  } catch (error) {
+    console.error('ПОМИЛКА ONBOARDING:', error);
+    res.status(500).json({ message: 'Помилка при налаштуванні профілю' });
+  }
 });
 
 // ===================================================
@@ -141,18 +205,14 @@ app.get('/api/soldiers', authMiddleware, async (req: Request, res: Response) => 
     if (!commander) return res.status(404).json({ message: 'Профіль не знайдено' });
 
     let filter: Record<string, unknown> = {};
-    if (role === 'ADMIN') {
-      // Адмін бачить всіх
-      filter = {};
-    } else if (role === 'STARSHYNA') {
-      // Старшина бачить всю свою роту
-      filter = { company: commander.company };
-    } else if (commander.position.includes('Командир роти')) {
-      filter = { company: commander.company };
-    } else if (commander.position.includes('Командир взводу')) {
-      filter = { company: commander.company, platoon: commander.platoon };
-    } else if (commander.position.includes('Командир відділення')) {
-      filter = { company: commander.company, platoon: commander.platoon, squad: commander.squad };
+    if (role === 'ADMIN' || role === 'FACULTY_HEAD') {
+      filter = {}; // бачить всіх
+    } else if (role === 'COURSE_SERGEANT' || role === 'COURSE_HEAD') {
+      filter = { company: commander.company }; // весь курс
+    } else if (role === 'GROUP_COMMANDER') {
+      filter = { company: commander.company, platoon: commander.platoon }; // своя група
+    } else if (role === 'SQUAD_COMMANDER') {
+      filter = { company: commander.company, platoon: commander.platoon, squad: commander.squad }; // своє відділення
     }
 
     res.json(await prisma.soldier.findMany({ where: filter, include: { user: { select: { email: true } } }, orderBy: { name: 'asc' } }));
@@ -183,28 +243,34 @@ app.get('/api/schedule/my', authMiddleware, async (req: Request, res: Response) 
     let commandLevel = '';
     const pos = soldier.position?.toLowerCase() || '';
 
-    if (role === 'STARSHYNA') {
-      // Старшина бачить всю роту
-      isCommander = true; commandLevel = 'Рота (Старшина)';
+    if (role === 'FACULTY_HEAD' || role === 'ADMIN') {
+      isCommander = true; commandLevel = 'Факультет';
+      const subs = await prisma.soldier.findMany({ where: { id: { not: soldier.id } } });
+      subordinatesSchedules = await prisma.schedule.findMany({
+        where: { soldierId: { in: subs.map(s => s.id) }, date: { gte: today } },
+        include: { dutyType: true, soldier: true }, orderBy: { date: 'asc' }
+      });
+    } else if (role === 'COURSE_HEAD' || role === 'COURSE_SERGEANT') {
+      isCommander = true; commandLevel = 'Курс';
       const subs = await prisma.soldier.findMany({ where: { company: soldier.company, id: { not: soldier.id } } });
       subordinatesSchedules = await prisma.schedule.findMany({
         where: { soldierId: { in: subs.map(s => s.id) }, date: { gte: today } },
         include: { dutyType: true, soldier: true }, orderBy: { date: 'asc' }
       });
-    } else if (role === 'ADMIN' || role === 'COMMANDER') {
-      if (pos.includes('командир відділення') && soldier.platoon && soldier.squad) {
-        isCommander = true; commandLevel = 'Відділення';
-        const subs = await prisma.soldier.findMany({ where: { company: soldier.company, platoon: soldier.platoon, squad: soldier.squad, id: { not: soldier.id } } });
-        subordinatesSchedules = await prisma.schedule.findMany({ where: { soldierId: { in: subs.map(s => s.id) }, date: { gte: today } }, include: { dutyType: true, soldier: true }, orderBy: { date: 'asc' } });
-      } else if ((pos.includes('командир взводу') || pos.includes('заступник командира взводу')) && soldier.platoon) {
-        isCommander = true; commandLevel = 'Взвод';
-        const subs = await prisma.soldier.findMany({ where: { company: soldier.company, platoon: soldier.platoon, id: { not: soldier.id } } });
-        subordinatesSchedules = await prisma.schedule.findMany({ where: { soldierId: { in: subs.map(s => s.id) }, date: { gte: today } }, include: { dutyType: true, soldier: true }, orderBy: { date: 'asc' } });
-      } else if (pos.includes('командир роти') || pos.includes('заступник командира роти')) {
-        isCommander = true; commandLevel = 'Рота';
-        const subs = await prisma.soldier.findMany({ where: { company: soldier.company, id: { not: soldier.id } } });
-        subordinatesSchedules = await prisma.schedule.findMany({ where: { soldierId: { in: subs.map(s => s.id) }, date: { gte: today } }, include: { dutyType: true, soldier: true }, orderBy: { date: 'asc' } });
-      }
+    } else if (role === 'GROUP_COMMANDER') {
+      isCommander = true; commandLevel = 'Група';
+      const subs = await prisma.soldier.findMany({ where: { company: soldier.company, platoon: soldier.platoon, id: { not: soldier.id } } });
+      subordinatesSchedules = await prisma.schedule.findMany({
+        where: { soldierId: { in: subs.map(s => s.id) }, date: { gte: today } },
+        include: { dutyType: true, soldier: true }, orderBy: { date: 'asc' }
+      });
+    } else if (role === 'SQUAD_COMMANDER') {
+      isCommander = true; commandLevel = 'Відділення';
+      const subs = await prisma.soldier.findMany({ where: { company: soldier.company, platoon: soldier.platoon, squad: soldier.squad, id: { not: soldier.id } } });
+      subordinatesSchedules = await prisma.schedule.findMany({
+        where: { soldierId: { in: subs.map(s => s.id) }, date: { gte: today } },
+        include: { dutyType: true, soldier: true }, orderBy: { date: 'asc' }
+      });
     }
 
     res.json({ soldier, schedules: mySchedules, isCommander, commandLevel, subordinatesSchedules });
@@ -251,7 +317,7 @@ app.post('/api/soldiers/bulk', authMiddleware, async (req: Request, res: Respons
     for (const name of names) {
       const email = `${translit(name)}@viti.edu.ua`;
       if (!await prisma.user.findUnique({ where: { email } })) {
-        await prisma.user.create({ data: { email, password: defaultPassword, role: 'SOLDIER', soldier: { create: { name, rank: 'Курсант', position: 'Курсант', phoneNumber: 'Не вказано', status: 'ACTIVE' } } } });
+        await prisma.user.create({ data: { email, password: defaultPassword, role: 'CADET', isFirstLogin: false, soldier: { create: { name, rank: 'Курсант', position: 'Курсант', phoneNumber: 'Не вказано', status: 'ACTIVE' } } } });
         createdCount++;
       }
     }
@@ -392,6 +458,7 @@ app.get('/api/schedule/my-schedule', authMiddleware, async (req: Request, res: R
 
 app.post('/api/schedule/generate', authMiddleware, async (req: Request, res: Response) => {
   try {
+    if (!canGenerateSchedule(req.user!.role)) return res.status(403).json({ message: 'Недостатньо прав для генерації графіку' });
     const { month, year } = req.body;
     if (!month || !year) return res.status(400).json({ message: 'Будь ласка, вкажіть місяць та рік' });
     const activeSoldiers = await prisma.soldier.findMany({ where: { status: 'ACTIVE' } });
@@ -433,6 +500,7 @@ app.post('/api/schedule/generate', authMiddleware, async (req: Request, res: Res
 
 app.put('/api/schedule/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
+    if (!canManualSwap(req.user!.role)) return res.status(403).json({ message: 'Недостатньо прав для ручної заміни' });
     const { newSoldierId } = req.body;
     if (!newSoldierId) return res.status(400).json({ message: 'Не вказано нового військовослужбовця' });
     res.json({ message: 'Заміну успішно виконано!', schedule: await prisma.schedule.update({ where: { id: Number(req.params.id) }, data: { soldierId: Number(newSoldierId) } }) });
@@ -450,7 +518,7 @@ app.post('/api/soldiers/import-excel', authMiddleware, async (req: Request, res:
       const name = row['ПІБ'] || row['Name']; if (!name) continue;
       const email = `${translit(name.trim())}@viti.edu.ua`;
       if (!await prisma.user.findUnique({ where: { email } })) {
-        await prisma.user.create({ data: { email, password: defaultPassword, role: 'SOLDIER', soldier: { create: { name: name.trim(), rank: (row['Звання']||row['Rank']||'Курсант').trim(), position: (row['Посада']||row['Position']||'Курсант').trim(), phoneNumber: 'Не вказано', status: 'ACTIVE' } } } });
+        await prisma.user.create({ data: { email, password: defaultPassword, role: 'CADET', isFirstLogin: false, soldier: { create: { name: name.trim(), rank: (row['Звання']||row['Rank']||'Курсант').trim(), position: (row['Посада']||row['Position']||'Курсант').trim(), phoneNumber: 'Не вказано', status: 'ACTIVE' } } } });
         createdCount++;
       }
     }

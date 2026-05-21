@@ -25,6 +25,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { MyProfilePage } from './pages/MyProfilePage';
 import { MySchedulePage } from './pages/MySchedulePage';
 import { DutyMapPage } from './pages/DutyMapPage';
+import { OnboardingPage } from './pages/OnboardingPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 // Охоронці маршрутів
@@ -47,6 +48,16 @@ function App() {
                     <Route path="/" element={<HomePage />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
+
+                    {/* Onboarding — захищений, але не потребує ролі */}
+                    <Route
+                      path="/onboarding"
+                      element={
+                        <ProtectedRoute>
+                          <OnboardingPage />
+                        </ProtectedRoute>
+                      }
+                    />
                     <Route path="/about" element={<AboutPage />} />
                     <Route path="/contact" element={<ContactPage />} />
 

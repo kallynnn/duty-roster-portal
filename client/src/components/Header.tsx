@@ -6,7 +6,7 @@ import { Navbar, Nav, Container, Button } from 'react-bootstrap';
 
 export const Header: React.FC = () => {
   const { isAuthenticated, logout, role } = useAuth();
-  const isCommander = role === 'COMMANDER' || role === 'ADMIN';
+  const isCommander = ['SQUAD_COMMANDER','GROUP_COMMANDER','COURSE_SERGEANT','COURSE_HEAD','FACULTY_HEAD','ADMIN'].includes(role || '');
 
   return (
     <Navbar bg="dark" variant="dark" expand="lg" sticky="top" className="p-3">

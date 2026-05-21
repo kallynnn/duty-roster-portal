@@ -20,8 +20,8 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
     try {
       const { data } = await axios.post('/api/auth/login', { email, password });
-      login(data.token, data.role);
-      navigate('/');
+      login(data.token, data.role, data.isFirstLogin);
+      navigate(data.isFirstLogin ? '/onboarding' : '/');
     } catch (err: any) {
       setError(axios.isAxiosError(err) && err.response
         ? err.response.data.message || 'Помилка входу'

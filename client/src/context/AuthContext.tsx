@@ -1,104 +1,103 @@
-import React, { 
-  useState, 
-  createContext, 
-  useContext, 
-  useEffect, 
-  useCallback // <-- Імпортуємо useCallback
+import React, {
+  useState,
+  createContext,
+  useContext,
+  useEffect,
+  useCallback
 } from 'react';
 import axios from 'axios';
 
-const TOKEN_KEY = 'auth-token';
+const TOKEN_KEY    = 'auth-token';
+const ROLE_KEY     = 'auth-role';
+const FL_KEY       = 'auth-first-login';
 
 interface IAuthContext {
-  token: string | null;
+  token:          string | null;
   isAuthenticated: boolean;
-  role: string | null;
-  login: (token: string, role: string) => void;
-  logout: () => void;
+  role:           string | null;
+  isFirstLogin:   boolean;
+  login:          (token: string, role: string, isFirstLogin: boolean) => void;
+  logout:         () => void;
+  completeOnboarding: (newToken: string, newRole: string) => void;
 }
 
 const AuthContext = createContext<IAuthContext | null>(null);
 
-// === Глобальна настройка Interceptor ===
-// Ми робимо це один раз, щоб уникнути багатьох підписок
 let isInterceptorSetup = false;
 
 const setupAxiosInterceptors = (logoutCallback: () => void) => {
-  // Налаштовуємо лише один раз
   if (isInterceptorSetup) return;
-
   axios.interceptors.response.use(
-    (response) => response, // Успішні відповіді просто пропускаємо
+    (response) => response,
     (error) => {
-      // Якщо сервер повернув 401 (токен невалідний або просрочений)
-      if (error.response && error.response.status === 401) {
-        logoutCallback(); // Викликаємо логаут
-      }
+      if (error.response && error.response.status === 401) logoutCallback();
       return Promise.reject(error);
     }
   );
   isInterceptorSetup = true;
 };
-// =====================================
-
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(null);
-  const [role, setRole] = useState<string | null>(null);
+  const [token,        setToken]        = useState<string | null>(null);
+  const [role,         setRole]         = useState<string | null>(null);
+  const [isFirstLogin, setIsFirstLogin] = useState<boolean>(false);
 
-  // Огортаємо logout в useCallback, щоб він не створювався заново
-  // при кожному рендері. Це важливо для useEffect.
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem('auth-role');
+    localStorage.removeItem(ROLE_KEY);
+    localStorage.removeItem(FL_KEY);
     setToken(null);
     setRole(null);
+    setIsFirstLogin(false);
     delete axios.defaults.headers.common['Authorization'];
-  }, []); // [] = немає залежностей
+  }, []);
 
-  // Функція "Увійти"
-  const login = (newToken: string, newRole: string) => {
+  const login = (newToken: string, newRole: string, firstLogin: boolean) => {
     localStorage.setItem(TOKEN_KEY, newToken);
-    localStorage.setItem('auth-role', newRole);
+    localStorage.setItem(ROLE_KEY,  newRole);
+    localStorage.setItem(FL_KEY,    String(firstLogin));
     axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
     setToken(newToken);
     setRole(newRole);
+    setIsFirstLogin(firstLogin);
   };
 
-  // При першому завантаженні
+  // Після onboarding — оновлюємо токен/роль, скидаємо прапор
+  const completeOnboarding = (newToken: string, newRole: string) => {
+    localStorage.setItem(TOKEN_KEY, newToken);
+    localStorage.setItem(ROLE_KEY,  newRole);
+    localStorage.setItem(FL_KEY,    'false');
+    axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+    setToken(newToken);
+    setRole(newRole);
+    setIsFirstLogin(false);
+  };
+
   useEffect(() => {
-    // 1. Налаштовуємо глобальний "catch" для 401 помилок
-    setupAxiosInterceptors(logout); 
-    
+    setupAxiosInterceptors(logout);
     const storedToken = localStorage.getItem(TOKEN_KEY);
-    const storedRole = localStorage.getItem('auth-role');
-    
+    const storedRole  = localStorage.getItem(ROLE_KEY);
+    const storedFL    = localStorage.getItem(FL_KEY);
     if (storedToken) {
-      // 2. (ВИРІШЕННЯ ГОНКИ) Спочатку налаштовуємо axios...
       axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-      
-      // 3. ...а потім оновлюємо стан React
       setToken(storedToken);
       setRole(storedRole);
+      setIsFirstLogin(storedFL === 'true');
     }
-  }, [logout]); // Додаємо 'logout' як залежність
+  }, [logout]);
 
-  const value = {
-    token,
-    isAuthenticated: !!token, 
-    role,
-    login,
-    logout,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{
+      token, isAuthenticated: !!token, role, isFirstLogin,
+      login, logout, completeOnboarding,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-// ... (ваш хук useAuth залишається без змін) ...
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };

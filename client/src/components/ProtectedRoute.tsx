@@ -1,19 +1,19 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // 1. Отримуємо стан автентифікації
-  const { isAuthenticated } = useAuth(); 
+  const { isAuthenticated, isFirstLogin } = useAuth();
+  const location = useLocation();
 
-  // 2. ПРАВИЛЬНА ЛОГІКА:
-  // Якщо користувач НЕ залогінений (зверни увагу на '!')
-  if (!isAuthenticated) { 
-    // ...тоді перенаправляємо його на сторінку входу
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // 3. Якщо він залогінений (isAuthenticated = true),
-  // то 'if' не спрацює, і ми просто покажемо 'children' (тобто, DashboardPage)
+  // Якщо ще не пройшов onboarding — перекидаємо туди (крім самої сторінки onboarding)
+  if (isFirstLogin && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   return <>{children}</>;
 };

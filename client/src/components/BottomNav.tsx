@@ -7,7 +7,7 @@ export const BottomNav: React.FC = () => {
 
   if (!isAuthenticated) return null;
 
-  const isCommander = role === 'COMMANDER' || role === 'ADMIN';
+  const isCommander = ['SQUAD_COMMANDER','GROUP_COMMANDER','COURSE_SERGEANT','COURSE_HEAD','FACULTY_HEAD','ADMIN'].includes(role || '');
 
   const navItems = isCommander
     ? [

@@ -8,17 +8,21 @@ datasource db {
 }
 
 model User {
-  id       Int      @id @default(autoincrement())
-  email    String   @unique
-  password String
-  role     Role     @default(SOLDIER)
-  soldier  Soldier?
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  password     String
+  role         Role     @default(CADET)
+  isFirstLogin Boolean  @default(true)
+  soldier      Soldier?
 }
 
 enum Role {
-  SOLDIER
-  STARSHYNA
-  COMMANDER
+  CADET
+  SQUAD_COMMANDER
+  GROUP_COMMANDER
+  COURSE_SERGEANT
+  COURSE_HEAD
+  FACULTY_HEAD
   ADMIN
 }
 

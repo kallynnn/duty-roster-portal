@@ -2,19 +2,31 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-// Захищає сторінки ТІЛЬКИ для COMMANDER та ADMIN
-// STARSHYNA і SOLDIER — перенаправляються на /profile
+// Ролі, які мають доступ до Dashboard / DutyMap
+const DASHBOARD_ROLES = [
+  'SQUAD_COMMANDER',
+  'GROUP_COMMANDER',
+  'COURSE_SERGEANT',
+  'COURSE_HEAD',
+  'FACULTY_HEAD',
+  'ADMIN',
+];
+
 export const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, role, token } = useAuth();
+  const { isAuthenticated, role, token, isFirstLogin } = useAuth();
 
   if (!isAuthenticated || !token) {
     return <Navigate to="/login" replace />;
   }
 
-  if (role === 'COMMANDER' || role === 'ADMIN') {
+  if (isFirstLogin) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  if (role && DASHBOARD_ROLES.includes(role)) {
     return <>{children}</>;
   }
 
-  // STARSHYNA і SOLDIER — тільки особистий кабінет
+  // CADET — тільки особистий кабінет
   return <Navigate to="/profile" replace />;
 };
