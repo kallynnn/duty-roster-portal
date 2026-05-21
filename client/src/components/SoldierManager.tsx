@@ -68,6 +68,8 @@ export const SoldierManager: React.FC = () => {
   // ── Масовий імпорт ──
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkText, setBulkText]           = useState('');
+  const [bulkPlatoon, setBulkPlatoon]     = useState('');
+  const [bulkCompany, setBulkCompany]     = useState('');
   const [isImporting, setIsImporting]     = useState(false);
 
   // ── Фільтрація ──
@@ -148,12 +150,17 @@ export const SoldierManager: React.FC = () => {
 
   // ── Масовий імпорт (текст) ──
   const handleBulkImport = async () => {
-    if (!bulkText.trim()) return showToast('Введіть список', 'warning');
+    if (!bulkText.trim())    return showToast('Введіть список імен', 'warning');
+    if (!bulkPlatoon.trim()) return showToast('Вкажіть номер взводу', 'warning');
     setIsImporting(true);
     try {
-      const res = await axios.post('/api/soldiers/bulk', { text: bulkText });
+      const res = await axios.post('/api/soldiers/bulk', {
+        text:    bulkText,
+        platoon: bulkPlatoon.trim(),
+        company: bulkCompany.trim() || undefined,
+      });
       showToast(res.data.message, 'success');
-      setBulkText('');
+      setBulkText(''); setBulkPlatoon(''); setBulkCompany('');
       setShowBulkModal(false);
       refetch();
     } catch (e: any) {
@@ -427,9 +434,11 @@ export const SoldierManager: React.FC = () => {
           <Modal.Title>Масовий імпорт курсантів</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Alert variant="info">
+
+          {/* Спосіб 1: Excel */}
+          <Alert variant="info" className="mb-3">
             <strong>Спосіб 1: Excel / CSV файл</strong><br />
-            Заголовки колонок: <b>ПІБ</b>, <b>Звання</b>, <b>Посада</b>
+            <span className="text-muted small">Колонки: <b>ПІБ</b>, <b>Звання</b> (необов'язково)</span>
             <Form.Control
               type="file"
               accept=".xlsx,.xls,.csv"
@@ -438,22 +447,53 @@ export const SoldierManager: React.FC = () => {
               className="mt-2"
             />
           </Alert>
+
           <hr />
-          <Alert variant="secondary">
-            <strong>Спосіб 2: Список ПІБ (по одному на рядок)</strong><br />
-            Всім буде присвоєно звання «Солдат».
-          </Alert>
+
+          {/* Спосіб 2: Текстовий список */}
+          <div className="mb-2">
+            <strong>Спосіб 2: Список ПІБ (по одному на рядок)</strong>
+            <p className="text-muted small mb-2">
+              Email буде сформовано автоматично: <code>прізвище{'{'}взвод{'}'}</code>@viti.edu.ua<br />
+              Пароль за замовчуванням: <b>viti2026</b>
+            </p>
+          </div>
+
+          <Row className="g-2 mb-2">
+            <Col xs={6}>
+              <Form.Label className="small fw-semibold">Взвод *</Form.Label>
+              <Form.Control
+                placeholder="напр. 221"
+                value={bulkPlatoon}
+                onChange={e => setBulkPlatoon(e.target.value)}
+              />
+            </Col>
+            <Col xs={6}>
+              <Form.Label className="small fw-semibold">Рота (необов'язково)</Form.Label>
+              <Form.Control
+                placeholder="напр. 21"
+                value={bulkCompany}
+                onChange={e => setBulkCompany(e.target.value)}
+              />
+            </Col>
+          </Row>
+
           <Form.Control
             as="textarea"
             rows={6}
-            placeholder={"Шевченко Т.Г.\nФранко І.Я.\nЛеся Українка"}
+            placeholder={"Атабаєв Олексій Анатолійович\nВащик Олександр Анатолійович\nВойтенко Андрій Романович"}
             value={bulkText}
             onChange={e => setBulkText(e.target.value)}
           />
+          {bulkText && bulkPlatoon && (
+            <div className="text-muted small mt-1">
+              Приклад email: <code>{bulkText.trim().split('\n')[0].trim().split(' ')[0].toLowerCase()}{bulkPlatoon}@viti.edu.ua</code>
+            </div>
+          )}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowBulkModal(false)}>Скасувати</Button>
-          <Button variant="success" onClick={handleBulkImport} disabled={isImporting || !bulkText.trim()}>
+          <Button variant="success" onClick={handleBulkImport} disabled={isImporting || !bulkText.trim() || !bulkPlatoon.trim()}>
             {isImporting ? <Spinner animation="border" size="sm" /> : 'Імпортувати'}
           </Button>
         </Modal.Footer>

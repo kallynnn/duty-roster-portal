@@ -306,22 +306,59 @@ app.get('/api/duties/init', authMiddleware, async (req: Request, res: Response) 
   } catch { res.status(500).json({ message: 'Помилка ініціалізації' }); }
 });
 
+// Транслітерація прізвища для email: тільки перше слово імені, спрощена схема
+const translitSurname = (fullName: string): string => {
+  const surname = fullName.trim().split(' ')[0];
+  const map: Record<string, string> = {
+    'а':'a','б':'b','в':'v','г':'h','д':'d','е':'e','є':'e',
+    'ж':'zh','з':'z','и':'y','і':'i','ї':'i','й':'y',
+    'к':'k','л':'l','м':'m','н':'n','о':'o','п':'p',
+    'р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh',
+    'ц':'ts','ч':'ch','ш':'sh','щ':'shch','ь':'','ю':'yu','я':'ya',
+    "'": '', '’': '',
+  };
+  return surname.toLowerCase().split('').map(c => map[c] !== undefined ? map[c] : c).join('');
+};
+
 app.post('/api/soldiers/bulk', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { text } = req.body;
-    if (!text) return res.status(400).json({ message: 'Порожній список' });
+    const { text, platoon, company, squad } = req.body;
+    if (!text)    return res.status(400).json({ message: 'Порожній список' });
+    if (!platoon) return res.status(400).json({ message: 'Вкажіть номер взводу (наприклад: 221)' });
+
     const names: string[] = text.split('\n').map((n: string) => n.trim()).filter((n: string) => n.length > 0);
     let createdCount = 0;
+    const skipped: string[] = [];
     const defaultPassword = await bcrypt.hash('viti2026', 12);
-    const translit = (str: string) => { const ukr: Record<string, string> = { 'а':'a','б':'b','в':'v','г':'h','д':'d','е':'e','є':'ye','ж':'zh','з':'z','и':'y','і':'i','ї':'yi','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'shch','ь':'','ю':'yu','я':'ya',' ':'_','.':'' }; return str.toLowerCase().split('').map(c => ukr[c] || c).join(''); };
+
+    // Відстежуємо дублікати прізвищ у цьому імпорті
+    const surnameCount: Record<string, number> = {};
+
     for (const name of names) {
-      const email = `${translit(name)}@viti.edu.ua`;
-      if (!await prisma.user.findUnique({ where: { email } })) {
-        await prisma.user.create({ data: { email, password: defaultPassword, role: 'CADET', isFirstLogin: false, soldier: { create: { name, rank: 'Курсант', position: 'Курсант', phoneNumber: 'Не вказано', status: 'ACTIVE' } } } });
-        createdCount++;
+      const base = translitSurname(name);
+      surnameCount[base] = (surnameCount[base] || 0) + 1;
+      const suffix = surnameCount[base] > 1 ? String(surnameCount[base]) : '';
+      const email = `${base}${platoon}${suffix}@viti.edu.ua`;
+
+      if (await prisma.user.findUnique({ where: { email } })) {
+        skipped.push(name); continue;
       }
+      await prisma.user.create({
+        data: {
+          email, password: defaultPassword, role: 'CADET', isFirstLogin: false,
+          soldier: { create: {
+            name, rank: 'Курсант', position: 'Курсант', phoneNumber: 'Не вказано', status: 'ACTIVE',
+            platoon: String(platoon),
+            company: company ? String(company) : null,
+            squad:   squad   ? String(squad)   : null,
+          }},
+        },
+      });
+      createdCount++;
     }
-    res.status(201).json({ message: `Успішно створено профілів: ${createdCount} (Пароль: viti2026)` });
+
+    const msg = `Створено: ${createdCount}. Пароль: viti2026.${skipped.length ? ` Пропущено (вже існують): ${skipped.join(', ')}` : ''}`;
+    res.status(201).json({ message: msg, created: createdCount, skipped });
   } catch (error) { console.error("ПОМИЛКА МАСОВОГО ІМПОРТУ:", error); res.status(500).json({ message: 'Помилка на сервері під час імпорту' }); }
 });
 
