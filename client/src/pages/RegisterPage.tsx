@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { MILITARY_RANKS, MILITARY_POSITIONS, STARSHYNA_POSITIONS, COMMANDER_POSITIONS } from '../utils/constants';
+import { MILITARY_RANKS } from '../utils/constants';
 
 interface FormData {
-  name: string; rank: string; position: string;
+  name: string; rank: string;
   phoneNumber: string; email: string;
   password: string; passwordConfirmation: string;
 }
 
 const INITIAL: FormData = {
-  name: '', rank: '', position: '', phoneNumber: '',
+  name: '', rank: '', phoneNumber: '',
   email: '', password: '', passwordConfirmation: '',
 };
 
@@ -20,11 +20,6 @@ const STEPS = [
   { label: 'Обліковий запис', icon: '🔐' },
 ];
 
-const getRoleLabel = (position: string): { label: string; color: string } | null => {
-  if (STARSHYNA_POSITIONS.includes(position)) return { label: 'Старшина', color: '#7c3aed' };
-  if (COMMANDER_POSITIONS.includes(position)) return { label: 'Командир', color: '#1e3a5f' };
-  return null;
-};
 
 const Field: React.FC<{ label: string; icon: string; children: React.ReactNode }> = ({ label, icon, children }) => (
   <div className="auth-field">
@@ -59,8 +54,7 @@ export const RegisterPage: React.FC = () => {
       if (!/^\+?[\d\s\-()]{7,15}$/.test(form.phoneNumber)) { setError('Невірний формат телефону'); return false; }
     }
     if (step === 1) {
-      if (!form.rank)     { setError('Оберіть звання'); return false; }
-      if (!form.position) { setError('Оберіть посаду'); return false; }
+      if (!form.rank) { setError('Оберіть звання'); return false; }
     }
     if (step === 2) {
       if (!form.email.trim())    { setError('Введіть email'); return false; }
@@ -80,9 +74,9 @@ export const RegisterPage: React.FC = () => {
     setLoading(true); setError('');
     try {
       await axios.post('/api/auth/register', {
-        name: form.name.trim(), rank: form.rank, position: form.position,
+        name: form.name.trim(), rank: form.rank,
         phoneNumber: form.phoneNumber.trim(), email: form.email.trim(),
-        password: form.password, passwordConfirmation: form.passwordConfirmation,
+        password: form.password,
       });
       setStep(3);
       setTimeout(() => navigate('/login'), 3000);
@@ -107,8 +101,6 @@ export const RegisterPage: React.FC = () => {
       </div>
     );
   }
-
-  const roleInfo = form.position ? getRoleLabel(form.position) : null;
 
   return (
     <div className="auth-page">
@@ -155,37 +147,20 @@ export const RegisterPage: React.FC = () => {
                 {MILITARY_RANKS.map((r, i) => <option key={i} value={r}>{r}</option>)}
               </select>
             </Field>
-            <Field label="Посада" icon="🏢">
-              <select className="auth-input auth-select" value={form.position} onChange={set('position')}>
-                <option value="" disabled>Оберіть посаду...</option>
-                {MILITARY_POSITIONS.map((p, i) => <option key={i} value={p}>{p}</option>)}
-              </select>
-            </Field>
 
-            {(form.rank || form.position) && (
+            {form.rank && (
               <div className="reg-preview">
                 <div className="reg-preview-title">Ваш профіль:</div>
-                {form.rank && (
-                  <div className="reg-preview-row">
-                    <span className="reg-preview-label">Звання:</span>
-                    <span className="reg-preview-value">{form.rank}</span>
-                  </div>
-                )}
-                {form.position && (
-                  <div className="reg-preview-row">
-                    <span className="reg-preview-label">Посада:</span>
-                    <span className="reg-preview-value">{form.position}</span>
-                  </div>
-                )}
-                {/* Показуємо роль яку отримає користувач */}
-                {roleInfo && (
-                  <div className="reg-preview-row" style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--bs-border-color)' }}>
-                    <span className="reg-preview-label">Роль в системі:</span>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 600, padding: '2px 10px', borderRadius: '20px', background: `${roleInfo.color}18`, color: roleInfo.color, border: `1px solid ${roleInfo.color}40` }}>
-                      {roleInfo.label}
-                    </span>
-                  </div>
-                )}
+                <div className="reg-preview-row">
+                  <span className="reg-preview-label">Звання:</span>
+                  <span className="reg-preview-value">{form.rank}</span>
+                </div>
+                <div className="reg-preview-row" style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--bs-border-color)' }}>
+                  <span className="reg-preview-label">Посада:</span>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--bs-secondary-color)' }}>
+                    🪖 Буде обрана після входу
+                  </span>
+                </div>
               </div>
             )}
           </div>
